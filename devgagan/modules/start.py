@@ -109,7 +109,7 @@ help_pages = [
         "> 4. REPLACEWORDS : Can be used for words in deleted set via REMOVE WORDS\n"
         "> 5. RESET : To set the things back to default\n\n"
         "> You can set CUSTOM THUMBNAIL, PDF WATERMARK, VIDEO WATERMARK, SESSION-based login, etc. from settings\n\n"
-        "**__Powered By ᴛᴇᴀᴍ  ꫝຮ 亗__**"
+        "**__Powered By ╰‿╯ ҡσℓเ ⚝__**"
     )
 ]
  
@@ -183,7 +183,7 @@ async def terms(client, message):
     buttons = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("📋 See Plans", callback_data="see_plan")],
-            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/TEAM_A_S_BOT")],
+            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/TEAM_AxxxS_BOT")],
         ]
     )
     await message.reply_text(terms_text, reply_markup=buttons)
@@ -251,7 +251,7 @@ async def see_plan(client, callback_query):
     buttons = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("📜 See Terms", callback_data="see_terms")],
-            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/TEAM_A_S_BOT")],
+            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/TEAM_AxxxS_BOT")],
         ]
     )
     await callback_query.message.edit_text(plan_text, reply_markup=buttons)
@@ -269,7 +269,7 @@ async def see_terms(client, callback_query):
     buttons = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("📋 See Plans", callback_data="see_plan")],
-            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/TEAM_A_S_BOT")],
+            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/@TEAM_AxxxS_BOT")],
         ]
     )
     await callback_query.message.edit_text(terms_text, reply_markup=buttons)
@@ -303,7 +303,7 @@ async def guide_page_2(_, query: CallbackQuery):
         "💡 Use /login only for private source.\n"
         "Use /id to get user or chat ID.\n\n"
         "Use /batch to download multiple posts at once 💀\n\n"
-        "Powered by CHOSEN ONE ⚝",
+        "Powered by ╰‿╯ ҡσℓเ ⚝",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("⬅️ Back", callback_data="guide_page_1")]
         ])
