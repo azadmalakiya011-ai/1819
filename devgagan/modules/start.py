@@ -223,7 +223,7 @@ async def plan(client, message):
         "⚡ High Speed 🚀\n"
         "═══════════════════"
         "💰 Better Plans Then others 💯\n\n"
-        "📲 To Upgrade: Contact @TEAM_A_S_BOT\n\n"
+        "📲 To Upgrade: Contact @TEAM_AxxxS_BOT\n\n"
         "💳 Payment via UPI, Amazon Gift Card or USDT\n"
         
     )
@@ -232,7 +232,7 @@ async def plan(client, message):
     buttons = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("📜 See Terms", callback_data="see_terms")],
-            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/TEAM_A_S_BOT")],
+            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/TEAM_AxxxS_BOT")],
         ]
     )
     await message.reply_text(plan_text, reply_markup=buttons)
