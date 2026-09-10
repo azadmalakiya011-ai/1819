@@ -228,7 +228,7 @@ async def batch_link(_, message):
         await message.reply(response_message)
         return
         
-    join_button = InlineKeyboardButton("Join Channel", url="https://t.me/+pZZQnMwRZR8yMTZl")
+    join_button = InlineKeyboardButton("Join Channel", url="https://t.me/SRC_PRO")
     keyboard = InlineKeyboardMarkup([[join_button]])
     pin_msg = await app.send_message(
         user_id,
