@@ -113,7 +113,7 @@ async def token_handler(client, message):
                 "➤ First do /login to save posts from Private Channel\n\n"
                 "💎 **Get Premium /plans**\n"
                 "💡 Need help? Send /guide\n For More Features Use /settings 😉 \n\n"
-                ">⚡ Contact Owner: @TEAM_A_S_BOT"
+                ">⚡ Contact Owner: @TEAM_AxxxS_BOT"
             ),
             reply_markup=keyboard,  # ✅ fixed here
             message_effect_id=5104841245755180586
