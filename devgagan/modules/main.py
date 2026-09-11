@@ -186,9 +186,9 @@ async def batch_link(_, message):
 
         if freecheck != 1 or user_id in OWNER_ID:
         max_batch_size = PREMIUM_LIMIT
-    elif await is_user_verified(user_id):
+        elif await is_user_verified(user_id):
         max_batch_size = 30
-    else:
+        else:
         max_batch_size = FREEMIUM_LIMIT
         
     # Start link input
