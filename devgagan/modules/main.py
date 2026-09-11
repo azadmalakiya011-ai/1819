@@ -184,14 +184,7 @@ async def batch_link(_, message):
         await message.reply("Freemium service is currently not available. Upgrade to premium for access.")
         return
 
-if freecheck != 1 or user_id in OWNER_ID:
-        max_batch_size = PREMIUM_LIMIT
-    elif await is_user_verified(user_id):
-        max_batch_size = 30
-    else:
-        max_batch_size = FREEMIUM_LIMIT
-        
-        
+    max_batch_size = PREMIUM_LIMIT if (freecheck != 1 or user_id in OWNER_ID) else (30 if await is_user_verified(user_id) else FREEMIUM_LIMIT)
         
     # Start link input
     for attempt in range(3):
