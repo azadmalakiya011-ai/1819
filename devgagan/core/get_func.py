@@ -777,8 +777,8 @@ def format_caption(original_caption, sender, custom_caption):
 
     # 🔁 Replace mapped words
     for old, new in replacements.items():
-        original_caption = original_caption.replace(old, new)
-
+        original_caption = re.sub(rf'(?<!\w){re.escape(word.strip())}(?!\w)', '', original_caption, flags=re.IGNORECASE) if word and word.strip() else original_caption
+        
     # ✅ Symbol replacements
     original_caption = original_caption.replace("[", "〘").replace("]", "〙")
     original_caption = original_caption.replace("📕", "📓")
