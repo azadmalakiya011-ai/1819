@@ -315,7 +315,8 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
                 uploaded,
                 caption=log_caption,
                 attributes=attributes,
-                thumb_path = thumbnail(sender) or await screenshot(file, duration, sender)
+                thumb=thumb_path
+                
             )
 
     except Exception as e:
