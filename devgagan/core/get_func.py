@@ -490,14 +490,14 @@ async def handle_sticker(app, msg, target_chat_id, topic_id, edit_id, log_group)
 
 async def get_media_filename(msg):
     if msg.document:
-        return msg.document.file_name or "Document_By_@SRC_PRO_S_BOT.txt"
+        return msg.document.file_name or "Document_By_@TEAM_AxxxS_BOT.txt"
     if msg.video:
-        return msg.video.file_name or "Video_By_@SRC_PRO_S_BOT.mp4"
+        return msg.video.file_name or "Video_By_@TEAM_AxxxS_BOT.mp4"
     if msg.audio:
-        return msg.audio.file_name or "Audio_By_@SRC_PRO_S_BOT.mp3"
+        return msg.audio.file_name or "Audio_By_@TEAM_AxxxS_BOT.mp3"
     if msg.photo:
-        return "Image_By_@SRC_PRO_S_BOT.jpg"
-    return "File_By_@SRC_PRO_S_BOT.dat"
+        return "Image_By_@TEAM_AxxxS_BOT.jpg"
+    return "File_By_@TEAM_AxxxS_BOT.dat"
 
 
 
@@ -521,10 +521,10 @@ async def get_final_caption(msg, sender):
     final_caption = f"{original_caption}\n\n{custom_caption}" if custom_caption else original_caption
 
     # Replace @mentions with @Real_Pirates
-    final_caption = re.sub(r'@\w+', '@TEAM_A_S_BOT', final_caption)
+    final_caption = re.sub(r'@\w+', '@TEAM_AxxxS_BOT', final_caption)
 
     # Replace all links with your channel link
-    final_caption = re.sub(r'https?://\S+|www\.\S+', 'https://t.me/+pZZQnMwRZR8yMTZl', final_caption)
+    final_caption = re.sub(r'https?://\S+|www\.\S+', 'https://t.me/SRC_PRO', final_caption)
 
     # Perform additional replacements from user-defined rules
     replacements = load_replacement_words(sender)
