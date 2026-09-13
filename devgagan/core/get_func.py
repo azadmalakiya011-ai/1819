@@ -306,7 +306,8 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
                 caption=caption_html,
                 attributes=attributes,
                 reply_to=topic_id,
-                thumb_path = thumbnail(sender) or await screenshot(file, duration, sender)
+                thumb=thumb_path
+                
             )
 
             await gf.send_file(
