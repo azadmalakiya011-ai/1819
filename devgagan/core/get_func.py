@@ -161,7 +161,8 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
         upload_method = await fetch_upload_method(sender)
         metadata = video_metadata(file)
         width, height, duration = metadata['width'], metadata['height'], metadata['duration']
-        thumb_path = await screenshot(file, duration, sender)
+        thumb_path = thumbnail(sender) or await screenshot(file, duration, sender)
+        
 
         ext = file.split('.')[-1].lower()
         raw_name = os.path.basename(file)
