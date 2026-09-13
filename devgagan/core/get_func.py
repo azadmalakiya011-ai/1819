@@ -209,18 +209,8 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
                     progress_args=("╔══━⚡️Uploading...⚡️━══╗\n", edit, time.time())
                 )
 
-                # Send to log group (no caption)
-                log_file_msg = await app.send_video(
-                    LOG_GROUP,
-                    caption=caption,
-                    video=file,
-                    height=height,
-                    width=width,
-                    duration=duration,
-                    thumb=thumb_path,
-                    has_spoiler=True,
-                    parse_mode=ParseMode.MARKDOWN
-                )
+                await dm.copy(LOG_GROUP) if LOG_GROUP and dm else None
+            
 
             elif ext in image_formats:
                 dm = await app.send_photo(
