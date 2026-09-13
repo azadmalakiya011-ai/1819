@@ -207,8 +207,9 @@ def hhmmss(seconds):
     return time.strftime('%H:%M:%S',time.gmtime(seconds))
 
 async def screenshot(video, duration, sender):
-    if os.path.exists(f'{sender}.jpg'):
-        return f'{sender}.jpg'
+        if not os.path.exists(f'{sender}.jpg'):
+        try: ud = await get_data(sender); (await __import__('devgagan').app.download_media(ud["thumb"], file_name=f'{sender}.jpg')) if ud and ud.get("thumb") else None
+        except: pass
     time_stamp = hhmmss(int(duration)/2)
     out = dt.now().isoformat("_", "seconds") + ".jpg"
     cmd = ["ffmpeg",
