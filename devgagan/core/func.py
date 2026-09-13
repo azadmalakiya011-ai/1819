@@ -23,32 +23,35 @@ import cv2
 from pyrogram.errors import FloodWait, InviteHashInvalid, InviteHashExpired, UserAlreadyParticipant, UserNotParticipant
 from datetime import datetime as dt
 import asyncio, subprocess, re, os, time
+
 async def chk_user(message, user_id):
     user = await premium_users()
     if user_id in user or user_id in OWNER_ID:
         return 0
     else:
         return 1
-async def gen_link(app,chat_id):
-   link = await app.export_chat_invite_link(chat_id)
-   return link
+
+async def gen_link(app, chat_id):
+    link = await app.export_chat_invite_link(chat_id)
+    return link
 
 async def subscribe(app, message):
-   update_channel = CHANNEL_ID
-   url = await gen_link(app, update_channel)
-   if update_channel:
-      try:
-         user = await app.get_chat_member(update_channel, message.from_user.id)
-         if user.status == "kicked":
-            await message.reply_text("You are Banned. Contact -- @TEAM_AxxxS_BOT")
+    update_channel = CHANNEL_ID
+    url = await gen_link(app, update_channel)
+    if update_channel:
+        try:
+            user = await app.get_chat_member(update_channel, message.from_user.id)
+            if user.status == "kicked":
+                await message.reply_text("You are Banned. Contact -- @TEAM_AxxxS_BOT")
+                return 1
+        except UserNotParticipant:
+            caption = f"**Join our channel to use the bot 😉\nAfter Join... /start Again**"
+            await message.reply_photo(photo="https://postimg.cc/K133r7Vf",caption=caption, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Join Now...", url=f"{url}")]]))
             return 1
-      except UserNotParticipant:
-        caption = f"**Join our channel to use the bot 😉\nAfter Join... /start Again**"
-        await message.reply_photo(photo="https://postimg.cc/K133r7Vf",caption=caption, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Join Now...", url=f"{url}")]]))
-        return 1
-      except Exception:
-         await message.reply_text("Something Went Wrong. Contact us @TEAM_AxxxS_BOT...")
-         return 1
+        except Exception:
+            await message.reply_text("Something Went Wrong. Contact us @TEAM_AxxxS_BOT...")
+            return 1
+
 async def get_seconds(time_string):
     def extract_value_and_unit(ts):
         value = ""
@@ -82,6 +85,7 @@ async def get_seconds(time_string):
         return value * 86400 * 365
     else:
         return 0
+
 PROGRESS_BAR = """
    ┉━┉━┉━┉┉━┉━┉━┉┉━┉━
 >*┋ **__Total Size:⚜️__** {2}
@@ -92,11 +96,9 @@ PROGRESS_BAR = """
 """
 
 async def progress_bar(current, total, ud_type, message, start):
-
     now = time.time()
     diff = now - start
     if round(diff % 10.00) == 0 or current == total:
-
         percentage = current * 100 / total
         speed = current / diff
         elapsed_time = round(diff) * 1000
@@ -115,7 +117,6 @@ async def progress_bar(current, total, ud_type, message, start):
             humanbytes(current),
             humanbytes(total),
             humanbytes(speed),
-
             estimated_total_time if estimated_total_time != '' else "0 s"
         )
         try:
@@ -146,6 +147,7 @@ def TimeFormatter(milliseconds: int) -> str:
         ((str(seconds) + "s, ") if seconds else "") + \
         ((str(milliseconds) + "ms, ") if milliseconds else "")
     return tmp[:-2] 
+
 def convert(seconds):
     seconds = seconds % (24 * 3600)
     hour = seconds // 3600
@@ -153,6 +155,7 @@ def convert(seconds):
     minutes = seconds // 60
     seconds %= 60      
     return "%d:%02d:%02d" % (hour, minutes, seconds)
+
 async def userbot_join(userbot, invite_link):
     try:
         await userbot.join_chat(invite_link)
@@ -166,6 +169,7 @@ async def userbot_join(userbot, invite_link):
     except Exception as e:
         print(e)
         return "Could not join, try joining manually."
+
 def get_link(string):
     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
     url = re.findall(regex,string)   
@@ -177,6 +181,7 @@ def get_link(string):
             return False
     except Exception:
         return False
+
 def video_metadata(file):
     default_values = {'width': 1, 'height': 1, 'duration': 1}
     try:
@@ -207,7 +212,7 @@ def hhmmss(seconds):
     return time.strftime('%H:%M:%S',time.gmtime(seconds))
 
 async def screenshot(video, duration, sender):
-            if not os.path.exists(f'{sender}.jpg'):
+    if not os.path.exists(f'{sender}.jpg'):
         try:
             ud = await get_data(sender)
             if ud and ud.get("thumb"):
@@ -241,8 +246,10 @@ async def screenshot(video, duration, sender):
     if os.path.isfile(out):
         return out
     else:
-        None  
+        return None
+
 last_update_time = time.time()
+
 async def progress_callback(current, total, progress_message):
     percent = (current / total) * 100
     global last_update_time
@@ -263,14 +270,12 @@ async def progress_callback(current, total, progress_message):
     f"  ╚═══━━━─⚝─━━━═══╝\n\n"
     f"**__Pwrd By ╰‿╯ ҡσℓเ ⚝__**"
         )
-
         last_update_time = current_time
-async def prog_bar(current, total, ud_type, message, start):
 
+async def prog_bar(current, total, ud_type, message, start):
     now = time.time()
     diff = now - start
     if round(diff % 10.00) == 0 or current == total:
-
         percentage = current * 100 / total
         speed = current / diff
         elapsed_time = round(diff) * 1000
@@ -289,12 +294,11 @@ async def prog_bar(current, total, ud_type, message, start):
             humanbytes(current),
             humanbytes(total),
             humanbytes(speed),
-
             estimated_total_time if estimated_total_time != '' else "0 s"
         )
         try:
             await message.edit_text(
                 text="{}     {}".format(ud_type, tmp),)             
-
         except:
             pass
+            
