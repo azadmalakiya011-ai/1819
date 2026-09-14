@@ -323,8 +323,6 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
     finally:
         gc.collect()
 
-
-
 async def get_msg(userbot, sender, edit_id, msg_link, i, message):
     try:
         # Sanitize the message link
