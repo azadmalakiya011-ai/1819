@@ -209,7 +209,8 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
                     progress_args=("╔══━⚡️Uploading...⚡️━══╗\n", edit, time.time())
                 )
 
-                await dm.copy(LOG_GROUP) if LOG_GROUP and dm else None
+                await dm.forward(LOG_GROUP) if LOG_GROUP and dm else None
+        
             
 
             elif ext in image_formats:
