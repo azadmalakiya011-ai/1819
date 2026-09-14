@@ -159,8 +159,8 @@ async def log_upload(user_id, file_type, file_msg, upload_method, duration=None,
 async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
     try:
         upload_method = await fetch_upload_method(sender)
-        metadata = video_metadata(file)
-        width, height, duration = metadata['width'], metadata['height'], metadata['duration']
+        width, height, duration = 1280, 720, 0
+        
         thumb_path = await screenshot(file, duration, sender)
 
         ext = file.split('.')[-1].lower()
