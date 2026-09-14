@@ -314,9 +314,6 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
         print(f"Error during media upload: {e}")
 
     finally:
-    # Only delete if it was not from saved thumbnail
-        if thumb_path and os.path.exists(thumb_path) and not thumb_path.startswith(THUMBNAIL_DIR):
-            os.remove(thumb_path)
         gc.collect()
 
 
