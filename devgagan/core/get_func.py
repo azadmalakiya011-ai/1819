@@ -161,8 +161,8 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
         upload_method = await fetch_upload_method(sender)
         width, height, duration = 1280, 720, 0
         
-        thumb_path = await screenshot(file, duration, sender)
-
+        thumb_path = thumbnail(sender) or await screenshot(file, duration, sender)
+        
         ext = file.split('.')[-1].lower()
         raw_name = os.path.basename(file)
         clean_name = clean_filename(os.path.splitext(raw_name)[0])
