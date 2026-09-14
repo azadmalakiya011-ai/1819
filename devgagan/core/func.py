@@ -13,7 +13,7 @@
 # ---------------------------------------------------
 
 import math
-import time , re
+import time, re
 from pyrogram import enums
 from config import CHANNEL_ID, OWNER_ID 
 from devgagan.core.mongo.plans_db import premium_users
@@ -212,16 +212,20 @@ def hhmmss(seconds):
     return time.strftime('%H:%M:%S',time.gmtime(seconds))
 
 async def screenshot(video, duration, sender):
-    if not os.path.exists(f'{sender}.jpg'):
-        try:
-            ud = await get_data(sender)
-            if ud and ud.get("thumb"):
-                from devgagan import app
-                await app.download_media(ud.get("thumb"), file_name=f'{sender}.jpg')
-        except Exception:
-            pass
-    if os.path.exists(f'{sender}.jpg'):
-        return f'{sender}.jpg'
+    thumb_file = f"{sender}.jpg"
+    try:
+        ud = await get_data(sender)
+        if ud and ud.get("thumb"):
+            from devgagan import app
+            if not os.path.exists(thumb_file):
+                await app.download_media(ud.get("thumb"), file_name=thumb_file)
+            if os.path.exists(thumb_file):
+                return thumb_file
+    except Exception as e:
+        print(f"Thumb error: {e}")
+
+    if os.path.exists(thumb_file):
+        return thumb_file
         
     time_stamp = hhmmss(int(duration)/2)
     out = dt.now().isoformat("_", "seconds") + ".jpg"
@@ -241,8 +245,6 @@ async def screenshot(video, duration, sender):
         stderr=asyncio.subprocess.PIPE
     )
     stdout, stderr = await process.communicate()
-    x = stderr.decode().strip()
-    y = stdout.decode().strip()
     if os.path.isfile(out):
         return out
     else:
