@@ -16,6 +16,7 @@
 import os
 import time
 import sys
+import html
 import motor
 from devgagan import app
 from pyrogram import filters
@@ -89,29 +90,30 @@ async def stats(client, message):
     premium = await premium_users()
     ping = round((time.time() - start) * 1000)
 
-    # પ્રીમિયમ યુઝર્સના નામ ફેચ કરવાનો કોડ
+    # પ્રીમિયમ યુઝર્સના નામ ફેચ કરવાનો કોડ (HTML લિંક)
     prem_list = []
     for uid in premium:
         try:
             u = await client.get_users(uid)
-            name = u.first_name or "User"
-            name = name.replace('[', '').replace(']', '')  # Markdown એરર ટાળવા
+            name = html.escape(u.first_name or "User")
             prem_list.append(f'<a href="tg://user?id={uid}">{name}</a>')
         except:
-            prem_list.append(f"[{uid}](tg://user?id={uid})")
+            prem_list.append(f'<a href="tg://user?id={uid}">{uid}</a>')
 
     prem_text = ", ".join(prem_list) if prem_list else "None"
 
     bot_info = await client.get_me()
+    bot_name = html.escape(bot_info.first_name or "Bot")
+
     stats_msg = (
-        f"**Stats of [{bot_info.first_name}](tg://user?id={bot_info.id}) :**\n\n"
-        f"🏓 **Ping Pong:** {ping}ms\n\n"
-        f"📊 **Total Users :** `{users}`\n"
-        f"📈 **Premium Users :** `{len(premium)}`\n"
-        f"💎 **Premium Users :** {prem_text}\n"
-        f"⚙️ **Bot Uptime :** `{time_formatter()}`\n\n"
-        f"🎨 **Python Version:** `{sys.version.split()[0]}`\n"
-        f"📑 **Mongo Version:** `{motor.version}`"
+        f"<b>Stats of <a href=\"tg://user?id={bot_info.id}\">{bot_name}</a> :</b>\n\n"
+        f"🏓 <b>Ping Pong:</b> {ping}ms\n\n"
+        f"📊 <b>Total Users :</b> <code>{users}</code>\n"
+        f"📈 <b>Premium Users :</b> <code>{len(premium)}</code>\n"
+        f"💎 <b>Premium Users :</b> {prem_text}\n"
+        f"⚙️ <b>Bot Uptime :</b> <code>{time_formatter()}</code>\n\n"
+        f"🎨 <b>Python Version:</b> <code>{sys.version.split()[0]}</code>\n"
+        f"📑 <b>Mongo Version:</b> <code>{motor.version}</code>"
     )
 
     await message.reply_text(stats_msg, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
@@ -168,4 +170,4 @@ async def show_users_page(client, chat_id, users, page=0, query=None):
         await query.answer()
     else:
         await client.send_message(chat_id, text, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
-  
+        
