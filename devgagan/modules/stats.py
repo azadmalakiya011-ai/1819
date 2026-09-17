@@ -96,7 +96,7 @@ async def stats(client, message):
             u = await client.get_users(uid)
             name = u.first_name or "User"
             name = name.replace('[', '').replace(']', '')  # Markdown એરર ટાળવા
-            prem_list.append(f"[{name}](tg://user?id={uid})")
+            prem_list.append(f'<a href="tg://user?id={uid}">{name}</a>')
         except:
             prem_list.append(f"[{uid}](tg://user?id={uid})")
 
