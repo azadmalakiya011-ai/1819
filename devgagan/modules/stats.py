@@ -114,8 +114,7 @@ async def stats(client, message):
         f"📑 **Mongo Version:** `{motor.version}`"
     )
 
-    await message.reply_text(stats_msg, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
-    
+    await message.reply_text(stats_msg, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
 
 
 # /getusers command — OWNER only, private chat
