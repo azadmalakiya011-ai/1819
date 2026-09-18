@@ -16,7 +16,6 @@
 import os
 import time
 import sys
-import html
 import motor
 from devgagan import app
 from pyrogram import filters
@@ -90,33 +89,45 @@ async def stats(client, message):
     premium = await premium_users()
     ping = round((time.time() - start) * 1000)
 
-    # પ્રીમિયમ યુઝર્સના નામ ફેચ કરવાનો કોડ (HTML લિંક)
-    prem_list = []
+    prem_buttons = []
+    prem_names = []
+
     for uid in premium:
         try:
             u = await client.get_users(uid)
-            name = html.escape(u.first_name or "User")
-            prem_list.append(f'<a href="tg://user?id={uid}">{name}</a>')
+            name = u.first_name or "User"
+            prem_names.append(name)
+            # જો username હોય તો t.me લિંક, નહીંતર openmessage ID લિંક
+            if u.username:
+                user_url = f"https://t.me/{u.username}"
+            else:
+                user_url = f"tg://openmessage?user_id={uid}"
+            prem_buttons.append([InlineKeyboardButton(f"💎 {name}", url=user_url)])
         except:
-            prem_list.append(f'<a href="tg://user?id={uid}">{uid}</a>')
+            prem_names.append(str(uid))
+            prem_buttons.append([InlineKeyboardButton(f"💎 {uid}", url=f"tg://openmessage?user_id={uid}")])
 
-    prem_text = ", ".join(prem_list) if prem_list else "None"
+    prem_text = ", ".join(prem_names) if prem_names else "None"
+    reply_markup = InlineKeyboardMarkup(prem_buttons) if prem_buttons else None
 
     bot_info = await client.get_me()
-    bot_name = html.escape(bot_info.first_name or "Bot")
-
     stats_msg = (
-        f"<b>Stats of <a href=\"tg://user?id={bot_info.id}\">{bot_name}</a> :</b>\n\n"
-        f"🏓 <b>Ping Pong:</b> {ping}ms\n\n"
-        f"📊 <b>Total Users :</b> <code>{users}</code>\n"
-        f"📈 <b>Premium Users :</b> <code>{len(premium)}</code>\n"
-        f"💎 <b>Premium Users :</b> {prem_text}\n"
-        f"⚙️ <b>Bot Uptime :</b> <code>{time_formatter()}</code>\n\n"
-        f"🎨 <b>Python Version:</b> <code>{sys.version.split()[0]}</code>\n"
-        f"📑 <b>Mongo Version:</b> <code>{motor.version}</code>"
+        f"**Stats of [{bot_info.first_name}](https://t.me/{bot_info.username}) :**\n\n"
+        f"🏓 **Ping Pong:** {ping}ms\n\n"
+        f"📊 **Total Users :** `{users}`\n"
+        f"📈 **Premium Users :** `{len(premium)}`\n"
+        f"💎 **Premium Users :** {prem_text}\n"
+        f"⚙️ **Bot Uptime :** `{time_formatter()}`\n\n"
+        f"🎨 **Python Version:** `{sys.version.split()[0]}`\n"
+        f"📑 **Mongo Version:** `{motor.version}`"
     )
 
-    await message.reply_text(stats_msg, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+    await message.reply_text(
+        stats_msg, 
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN, 
+        disable_web_page_preview=True
+    )
 
 
 # /getusers command — OWNER only, private chat
