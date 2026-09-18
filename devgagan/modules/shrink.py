@@ -14,6 +14,7 @@
 
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+import os
 import random
 import requests
 import string
@@ -24,13 +25,22 @@ from datetime import datetime, timedelta
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import MONGO_DB, WEBSITE_URL, AD_API, LOG_GROUP  
 
+# Koyeb માંથી TOKEN_TIMEOUT લેશે (જો ન મળે તો બાય-ડિફોલ્ટ 10800 એટલે કે 3 કલાક)
+try:
+    from config import TOKEN_TIMEOUT
+    TOKEN_TIMEOUT = int(TOKEN_TIMEOUT)
+except Exception:
+    TOKEN_TIMEOUT = int(os.environ.get("TOKEN_TIMEOUT", 10800))
+
 tclient = AsyncIOMotorClient(MONGO_DB)
 tdb = tclient["telegram_bot"]
 token = tdb["tokens"]
+token_cooldown = tdb["token_cooldown"]
  
  
 async def create_ttl_index():
     await token.create_index("expires_at", expireAfterSeconds=0)
+    await token_cooldown.create_index("expires_at", expireAfterSeconds=0)
  
  
 Param = {}
@@ -72,10 +82,29 @@ async def token_command_handler(client: Client, message: Message):
         await message.reply("👑 You are a Premium User! You do not need any token.")
         return
         
-    # Check if already verified
+    # Check if already verified (Active 3-hour session)
     if await is_user_verified(user_id):
         await message.reply("✅ You already have an active token session! Enjoy unlimited access.")
         return
+
+    # ૨૪ કલાકનું કુલડાઉન ચેક
+    now = datetime.utcnow()
+    cooldown = await token_cooldown.find_one({"user_id": user_id})
+    if cooldown:
+        exp_time = cooldown.get("expires_at")
+        if exp_time and exp_time > now:
+            time_left = exp_time - now
+            hours, remainder = divmod(int(time_left.total_seconds()), 3600)
+            minutes, _ = divmod(remainder, 60)
+            await message.reply(
+                f"⚠️ **લિમિટ પૂરી થઈ ગઈ છે!**\n\n"
+                f"તમે ૨૪ કલાકમાં ફક્ત ૧ જ વાર ટોકન લઈ શકો છો.\n"
+                f"⏳ ફરી ટોકન લેવા માટે બાકી સમય: `{hours} કલાક, {minutes} મિનિટ`.\n\n"
+                f"અનલિમિટેડ વાપરવા માટે પ્રીમિયમ ખરીદો: /plans"
+            )
+            return
+        else:
+            await token_cooldown.delete_one({"user_id": user_id})
 
     msg = await message.reply("⏳ **Generating your token link, please wait...**")
     
@@ -102,7 +131,8 @@ async def token_command_handler(client: Client, message: Message):
         "1️⃣ Click the button below to open the link.\n"
         "2️⃣ Complete the shortener steps.\n"
         "3️⃣ You will be redirected back to this bot automatically!\n\n"
-        "⏱️ **Validity:** 3 Hours"
+        "⏱️ **Validity:** 3 Hours\n"
+        "⚠️ **નોંધ:** ૨૪ કલાકમાં ફક્ત ૧ જ વાર ટોકન મળશે."
     )
     
     await msg.edit(caption, reply_markup=button)
@@ -120,7 +150,7 @@ async def token_handler(client, message):
     user_id = message.chat.id
 
     if len(message.command) <= 1:
-        image_url = "https://freeimage.host/i/F5dGOsj"  # must end with .jpg/.png etc.
+        image_url = "https://freeimage.host/i/F5dGOsj"
         join_button = InlineKeyboardButton("✈️ Main Channel", url="https://t.me/SRC_PRO")
         premium = InlineKeyboardButton("🦋 Contact Owner", url="https://t.me/TEAM_AxxxS_BOT")
         keyboard = InlineKeyboardMarkup([
@@ -128,7 +158,6 @@ async def token_handler(client, message):
             [premium]
         ])
 
-        # Mention the user in the caption
         user_mention = message.from_user.mention if message.from_user else "User"
 
         await message.reply_photo(
@@ -159,12 +188,27 @@ async def token_handler(client, message):
  
     if param:
         if user_id in Param and Param[user_id] == param:
+            now = datetime.utcnow()
+            
+            # Koyeb ના TOKEN_TIMEOUT મુજબ વેલિડિટી (3 કલાક)
             await token.insert_one({
                 "user_id": user_id,
                 "param": param,
-                "created_at": datetime.utcnow(),
-                "expires_at": datetime.utcnow() + timedelta(hours=3),
+                "created_at": now,
+                "expires_at": now + timedelta(seconds=TOKEN_TIMEOUT),
             })
+            
+            # 24 કલાક માટે નવો ટોકન લેવા પર લોક
+            await token_cooldown.update_one(
+                {"user_id": user_id},
+                {"$set": {
+                    "user_id": user_id,
+                    "verified_at": now,
+                    "expires_at": now + timedelta(hours=24)
+                }},
+                upsert=True
+            )
+            
             del Param[user_id]   
             await message.reply("✅ You have been verified successfully! Enjoy your session for next 3 hours.")
             return
