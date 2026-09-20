@@ -23,16 +23,15 @@ from config import API_ID, API_HASH, FREEMIUM_LIMIT, PREMIUM_LIMIT, OWNER_ID
 from devgagan.core.get_func import get_msg
 from devgagan.core.func import *
 from devgagan.core.mongo import db
-from pyrogram.errors import FloodWait
+from pyrogram.errors import FloodWait, MessageNotModified
 from datetime import datetime, timedelta
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import subprocess
 from pyrogram.types import Message
 from devgagan.modules.shrink import is_user_verified
+
 async def generate_random_name(length=8):
     return ''.join(random.choices(string.ascii_lowercase, k=length))
-
-
 
 users_loop = {}
 interval_set = {}
@@ -67,7 +66,6 @@ async def set_interval(user_id, interval_minutes=45):
     now = datetime.now()
     # Set the cooldown interval for the user
     interval_set[user_id] = now + timedelta(seconds=interval_minutes)
-    
 
 @app.on_message(
     filters.regex(r'https?://(?:www\.)?t\.me/[^\s]+|tg://openmessage\?user_id=\w+&message_id=\d+')
@@ -127,13 +125,12 @@ async def single_link(_, message):
         except Exception:
             pass
 
-
-async def initialize_userbot(user_id): # this ensure the single startup .. even if logged in or not
+async def initialize_userbot(user_id):
     """Initialize the userbot session for the given user."""
     data = await db.get_data(user_id)
     if data and data.get("session"):
         try:
-            device = 'iPhone 16 Pro' # added gareebi text
+            device = 'iPhone 16 Pro'
             userbot = Client(
                 "userbot",
                 api_id=API_ID,
@@ -146,7 +143,6 @@ async def initialize_userbot(user_id): # this ensure the single startup .. even 
         except Exception:
             return None
     return None
-
 
 async def is_normal_tg_link(link: str) -> bool:
     """Check if the link is a standard Telegram link."""
@@ -163,7 +159,6 @@ async def process_special_links(userbot, user_id, msg, link):
         await set_interval(user_id, interval_minutes=45)
     else:
         await msg.edit_text("Invalid link format.")
-
 
 @app.on_message(filters.command("batch") & filters.private)
 async def batch_link(_, message):
@@ -188,10 +183,9 @@ async def batch_link(_, message):
         
     # Start link input
     for attempt in range(3):
-    # Send image with caption
         await app.send_photo(
             message.chat.id,
-            photo="https://i.postimg.cc/BXkchVpY/image.jpg",  # Replace with your image URL
+            photo="https://i.postimg.cc/BXkchVpY/image.jpg",
             caption="Just Copy Post Link And Send it To Me.\n\nजहाँ से शुरू करना है उस पोस्ट का लिंक भेजो\n\nMake sure the link is correct!"
         )
         start = await app.ask(message.chat.id, "🎯 Send The Link For Where I Need To Start Process From \n\n> You Have Only 3 Tries")
@@ -246,21 +240,31 @@ async def batch_link(_, message):
             if user_id in users_loop and users_loop[user_id]:
                 url = f"{'/'.join(start_id.split('/')[:-1])}/{i}"
                 link = get_link(url)
-                # Process t.me links (normal) without userbot
                 if 't.me/' in link and not any(x in link for x in ['t.me/b/', 't.me/c/', 'tg://openmessage']):
                     msg = await app.send_message(message.chat.id, f"Processing...")
                     await process_and_upload_link(userbot, user_id, msg.id, link, 0, message)
-                    await pin_msg.edit_text(
-                        f"Batch process started ⚡\nProcessing: {i - cs + 1}/{cl}\n\n**__Powered By ╰‿╯ ҡσℓเ ⚝__**",
-                        reply_markup=keyboard
-                    )
+                    try:
+                        await pin_msg.edit_text(
+                            f"Batch process started ⚡\nProcessing: {i - cs + 1}/{cl}\n\n**__Powered By ╰‿╯ ҡσℓเ ⚝__**",
+                            reply_markup=keyboard
+                        )
+                    except MessageNotModified:
+                        pass
+                    except FloodWait as fw:
+                        await asyncio.sleep(fw.value)
+                    except Exception:
+                        pass
                     normal_links_handled = True
+
         if normal_links_handled:
             await set_interval(user_id, interval_minutes=300)
-            await pin_msg.edit_text(
-                f"Batch completed successfully for {cl} messages 🎉\n\n**__Powered By ╰‿╯ ҡσℓเ ⚝__**",
-                reply_markup=keyboard
-            )
+            try:
+                await pin_msg.edit_text(
+                    f"Batch completed successfully for {cl} messages 🎉\n\n**__Powered By ╰‿╯ ҡσℓเ ⚝__**",
+                    reply_markup=keyboard
+                )
+            except Exception:
+                pass
             await app.send_message(message.chat.id, "😘 𝗖ꪮ𝗺𝗽𝗹𝗲𝘁𝗲 𝗛ꪮ 𝗚𝗮𝘆𝗮 𝗕ꪮ$$ 😎")
             return
             
@@ -276,16 +280,26 @@ async def batch_link(_, message):
                 if any(x in link for x in ['t.me/b/', 't.me/c/']):
                     msg = await app.send_message(message.chat.id, f"Processing...")
                     await process_and_upload_link(userbot, user_id, msg.id, link, 0, message)
-                    await pin_msg.edit_text(
-                        f"Batch process started ⚡\nProcessing: {i - cs + 1}/{cl}\n\n**__Powered By ╰‿╯ ҡσℓเ ⚝__**",
-                        reply_markup=keyboard
-                    )
+                    try:
+                        await pin_msg.edit_text(
+                            f"Batch process started ⚡\nProcessing: {i - cs + 1}/{cl}\n\n**__Powered By ╰‿╯ ҡσℓเ ⚝__**",
+                            reply_markup=keyboard
+                        )
+                    except MessageNotModified:
+                        pass
+                    except FloodWait as fw:
+                        await asyncio.sleep(fw.value)
+                    except Exception:
+                        pass
 
         await set_interval(user_id, interval_minutes=300)
-        await pin_msg.edit_text(
-            f"Batch completed successfully for {cl} messages 🎉\n\n**__Powered By ╰‿╯ ҡσℓเ ⚝__**",
-            reply_markup=keyboard
-        )
+        try:
+            await pin_msg.edit_text(
+                f"Batch completed successfully for {cl} messages 🎉\n\n**__Powered By ╰‿╯ ҡσℓเ ⚝__**",
+                reply_markup=keyboard
+            )
+        except Exception:
+            pass
         await app.send_message(message.chat.id, "Batch completed successfully! 🎉")
 
     except Exception as e:
@@ -297,9 +311,8 @@ async def batch_link(_, message):
 async def stop_batch(_, message):
     user_id = message.chat.id
 
-    # Check if there is an active batch process for the user
     if user_id in users_loop and users_loop[user_id]:
-        users_loop[user_id] = False  # Set the loop status to False
+        users_loop[user_id] = False
         await app.send_message(
             message.chat.id, 
             "Batch processing has been stopped successfully. You can start a new batch now if you want."
@@ -313,4 +326,5 @@ async def stop_batch(_, message):
         await app.send_message(
             message.chat.id, 
             "No active batch processing is running to cancel."
-        )
+                    )
+        
