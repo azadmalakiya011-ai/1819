@@ -13,7 +13,7 @@
 # ---------------------------------------------------
 
 import datetime
-from pyrogram import filters
+from pyrogram import filters, StopPropagation
 from devgagan import app
 from config import OWNER_ID
 from devgagan.core.func import subscribe
@@ -70,40 +70,42 @@ async def redeem_referral_points(user_id: int):
 @app.on_message(filters.command("start") & filters.private, group=-100)
 async def ref_start_handler(client, message: Message):
     if len(message.command) > 1 and message.command[1].startswith("ref_"):
+        message.stop_propagation()
+        
+        referrer_id_str = message.command[1].replace("ref_", "")
         try:
-            referrer_id = int(message.command[1].replace("ref_", ""))
-            new_user_id = message.from_user.id
+            referrer_id = int(referrer_id_str)
+        except ValueError:
+            raise StopPropagation
 
-            if referrer_id == new_user_id:
-                await message.reply_text("❌ તમે તમારી પોતાની લિંક વાપરી શકતા નથી!")
-                message.stop_propagation()
-                return
+        new_user_id = message.from_user.id
 
-            success = await add_referral(referrer_id, new_user_id)
-            if success:
-                try:
-                    await client.send_message(
-                        chat_id=referrer_id,
-                        text=f"🎉 **નવો રેફરલ જોડાયો!**\n\nયુઝર: {message.from_user.mention} તમારી લિંકથી સફળતાપૂર્વક જોડાયા છે."
-                    )
-                except Exception:
-                    pass
-                await message.reply_text(
-                    f"👋 **નમસ્તે {message.from_user.first_name}!**\n\n"
-                    "🎉 તમે સફળતાપૂર્વક રેફરલ લિંક દ્વારા બોટમાં જોડાઈ ગયા છો.\n\n"
-                    "👉 બોટનો ઉપયોગ કરવા માટે /token મેળવી લો અથવા તમારા મિત્રોને /referral દ્વારા જોડીને Pro પ્લાન મેળવો!"
+        if referrer_id == new_user_id:
+            await message.reply_text("❌ તમે તમારી પોતાની લિંક વાપરી શકતા નથી!")
+            raise StopPropagation
+
+        success = await add_referral(referrer_id, new_user_id)
+        if success:
+            try:
+                await client.send_message(
+                    chat_id=referrer_id,
+                    text=f"🎉 **નવો રેફરલ જોડાયો!**\n\nયુઝર: {message.from_user.mention} તમારી લિંકથી સફળતાપૂર્વક જોડાયા છે."
                 )
-            else:
-                await message.reply_text(
-                    f"👋 **નમસ્તે {message.from_user.first_name}!**\n\n"
-                    "⚠️ તમે પહેલેથી જ બોટના સભ્ય છો, તેથી રેફરલ ગણાયો નથી.\n\n"
-                    "👉 બોટ વાપરવા માટે /token મેળવી લો અથવા તમારા મિત્રોને /referral થી જોડી Pro પ્લાન મેળવો!"
-                )
-            
-            message.stop_propagation()
-            return
-        except Exception:
-            pass
+            except Exception:
+                pass
+            await message.reply_text(
+                f"👋 **નમસ્તે {message.from_user.first_name}!**\n\n"
+                "🎉 તમે સફળતાપૂર્વક રેફરલ લિંક દ્વારા બોટમાં જોડાઈ ગયા છો.\n\n"
+                "👉 બોટનો ઉપયોગ કરવા માટે /token મેળવી લો અથવા તમારા મિત્રોને /referral દ્વારા જોડીને Pro પ્લાન મેળવો!"
+            )
+        else:
+            await message.reply_text(
+                f"👋 **નમસ્તે {message.from_user.first_name}!**\n\n"
+                "⚠️ તમે પહેલેથી જ બોટના સભ્ય છો, તેથી રેફરલ ગણાયો નથી.\n\n"
+                "👉 બોટ વાપરવા માટે /token મેળવી લો અથવા તમારા મિત્રોને /referral થી જોડી Pro પ્લાન મેળવો!"
+            )
+        
+        raise StopPropagation
 
 
 @app.on_message(filters.command("set"))
@@ -326,7 +328,7 @@ async def see_terms(client, callback_query):
     buttons = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("📋 See Plans", callback_data="see_plan")],
-            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/@TEAM_AxxxS_BOT")],
+            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/TEAM_AxxxS_BOT")],
         ]
     )
     await callback_query.message.edit_text(terms_text, reply_markup=buttons)
@@ -453,22 +455,16 @@ async def ref_callback_handler(client, query):
             try:
                 expire_date = datetime.datetime.now() + datetime.timedelta(hours=3)
                 
-                # બોટના બધા જ શક્ય કલેક્શનમાં પ્રીમિયમ સેટ થશે
-                # 1. Users collection
                 await users_collection.update_one(
                     {"user_id": user_id},
                     {"$set": {"plan": "Premium", "plan_type": "pro", "expire_date": expire_date, "expiry": expire_date}},
                     upsert=True
                 )
-                
-                # 2. Plans collection
                 await plans_collection.update_one(
                     {"user_id": user_id},
                     {"$set": {"plan": "Premium", "expire_date": expire_date, "expiry": expire_date}},
                     upsert=True
                 )
-                
-                # 3. Premium collection
                 await premium_collection.update_one(
                     {"user_id": user_id},
                     {"$set": {"expire_date": expire_date, "expiry": expire_date}},
@@ -477,4 +473,7 @@ async def ref_callback_handler(client, query):
             except Exception:
                 pass
 
-        
+            await query.answer("🎉 સફળતાપૂર્વક ક્લેમ થઈ ગયું!", show_alert=True)
+            await query.message.reply_text("🎉 **અભિનંદન!**\n\nતમને ૩ કલાક માટે **Pro Premium** પ્લાન મળી ગયો છે!")
+            await referral_menu(client, query.message)
+    
