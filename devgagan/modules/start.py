@@ -23,12 +23,13 @@ from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBu
 from pyrogram.raw.functions.bots import SetBotInfo
 from pyrogram.raw.types import InputUserSelf
 from devgagan.core.mongo.db import db
+from devgagan.core.mongo.plans_db import premium_users
 
-# Database Collections
+# Collections
 referral_collection = db["referrals"]
 users_collection = db["users"]
 plans_collection = db["plans"]
-premium_collection = db["premium"]
+tokens_collection = db["tokens"]
 
 # --- DATABASE FUNCTIONS FOR REFERRAL ---
 async def get_referral_data(user_id: int):
@@ -39,9 +40,10 @@ async def get_referral_data(user_id: int):
     return data
 
 async def add_referral(referrer_id: int, new_user_id: int):
+    user_in_premium = await premium_users.find_one({"user_id": new_user_id})
     user_exists = await users_collection.find_one({"user_id": new_user_id})
     ref_exists = await referral_collection.find_one({"user_id": new_user_id})
-    if user_exists or ref_exists:
+    if user_in_premium or user_exists or ref_exists:
         return False
 
     await referral_collection.insert_one({"user_id": new_user_id, "referrals": 0, "redeemed": 0})
@@ -66,23 +68,21 @@ async def redeem_referral_points(user_id: int):
         return True
     return False
 
-# --- REFERRAL START HANDLER (TOKEN ERROR PREVENTER) ---
-@app.on_message(filters.command("start") & filters.private, group=-100)
+# --- REFERRAL START HANDLER ---
+@app.on_message(filters.command("start") & filters.private, group=-1)
 async def ref_start_handler(client, message: Message):
-    if len(message.command) > 1 and message.command[1].startswith("ref_"):
-        message.stop_propagation()
-        
+    if len(message.command) > 1 and str(message.command[1]).startswith("ref_"):
         referrer_id_str = message.command[1].replace("ref_", "")
         try:
             referrer_id = int(referrer_id_str)
         except ValueError:
-            raise StopPropagation
+            return
 
         new_user_id = message.from_user.id
 
         if referrer_id == new_user_id:
             await message.reply_text("❌ તમે તમારી પોતાની લિંક વાપરી શકતા નથી!")
-            raise StopPropagation
+            return
 
         success = await add_referral(referrer_id, new_user_id)
         if success:
@@ -104,8 +104,7 @@ async def ref_start_handler(client, message: Message):
                 "⚠️ તમે પહેલેથી જ બોટના સભ્ય છો, તેથી રેફરલ ગણાયો નથી.\n\n"
                 "👉 બોટ વાપરવા માટે /token મેળવી લો અથવા તમારા મિત્રોને /referral થી જોડી Pro પ્લાન મેળવો!"
             )
-        
-        raise StopPropagation
+        return
 
 
 @app.on_message(filters.command("set"))
@@ -328,7 +327,7 @@ async def see_terms(client, callback_query):
     buttons = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("📋 See Plans", callback_data="see_plan")],
-            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/TEAM_AxxxS_BOT")],
+            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/@TEAM_AxxxS_BOT")],
         ]
     )
     await callback_query.message.edit_text(terms_text, reply_markup=buttons)
@@ -440,7 +439,7 @@ async def referral_menu(client, message):
 
     await message.reply_text(text, reply_markup=buttons, disable_web_page_preview=True)
 
-# --- REFERRAL BUTTON CALLBACK HANDLER ---
+# --- CLAIM PRO CALLBACK HANDLER ---
 @app.on_callback_query(filters.regex("^(claim_pro_ref|close_ref)$"))
 async def ref_callback_handler(client, query):
     if query.data == "close_ref":
@@ -453,27 +452,30 @@ async def ref_callback_handler(client, query):
 
         if claimed:
             try:
-                expire_date = datetime.datetime.now() + datetime.timedelta(hours=3)
+                # બરાબર ૩ કલાકની મુદત
+                expiry_time = datetime.datetime.now() + datetime.timedelta(hours=3)
                 
-                await users_collection.update_one(
+                # devgagan ના official premium_users કલેક્શનમાં એન્ટ્રી
+                await premium_users.update_one(
                     {"user_id": user_id},
-                    {"$set": {"plan": "Premium", "plan_type": "pro", "expire_date": expire_date, "expiry": expire_date}},
+                    {
+                        "$set": {
+                            "user_id": user_id,
+                            "expiry_time": expiry_time,
+                            "plan": "Pro 3 Hours"
+                        }
+                    },
                     upsert=True
                 )
-                await plans_collection.update_one(
-                    {"user_id": user_id},
-                    {"$set": {"plan": "Premium", "expire_date": expire_date, "expiry": expire_date}},
-                    upsert=True
-                )
-                await premium_collection.update_one(
-                    {"user_id": user_id},
-                    {"$set": {"expire_date": expire_date, "expiry": expire_date}},
-                    upsert=True
-                )
-            except Exception:
-                pass
 
-            await query.answer("🎉 સફળતાપૂર્વક ક્લેમ થઈ ગયું!", show_alert=True)
-            await query.message.reply_text("🎉 **અભિનંદન!**\n\nતમને ૩ કલાક માટે **Pro Premium** પ્લાન મળી ગયો છે!")
-            await referral_menu(client, query.message)
-    
+                # બીજા તમામ ટેબલ્સમાં પણ સેવ
+                update_dict = {
+                    "user_id": user_id,
+                    "plan": "Premium",
+                    "plan_type": "pro",
+                    "expire_date": expiry_time,
+                    "expiry_date": expiry_time,
+                    "expiry": expiry_time
+                }
+                await users_collection.update_one({"user_id": user_id}, {"$set": update_dict}, upsert=True)
+                await plans_collection.update_one({"user_id"
