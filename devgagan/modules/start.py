@@ -18,7 +18,7 @@ from config import OWNER_ID
 from devgagan.core.func import subscribe
 import asyncio
 from devgagan.core.func import *
-from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Message
+from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Message, BotCommand
 from pyrogram.raw.functions.bots import SetBotInfo
 from pyrogram.raw.types import InputUserSelf
  
@@ -56,8 +56,6 @@ async def set(_, message):
     ])
  
     await message.reply("✅ Commands configured successfully!")
- 
- 
  
  
 help_pages = [
@@ -118,24 +116,19 @@ async def send_or_edit_help_page(_, message, page_number):
     if page_number < 0 or page_number >= len(help_pages):
         return
  
-     
     prev_button = InlineKeyboardButton("◀️ Previous", callback_data=f"help_prev_{page_number}")
     next_button = InlineKeyboardButton("Next ▶️", callback_data=f"help_next_{page_number}")
  
-     
     buttons = []
     if page_number > 0:
         buttons.append(prev_button)
     if page_number < len(help_pages) - 1:
         buttons.append(next_button)
  
-     
     keyboard = InlineKeyboardMarkup([buttons])
  
-     
     await message.delete()
  
-     
     await message.reply(
         help_pages[page_number],
         reply_markup=keyboard
@@ -148,7 +141,6 @@ async def help(client, message):
     if join == 1:
         return
  
-     
     await send_or_edit_help_page(client, message, 0)
  
  
@@ -161,15 +153,9 @@ async def on_help_navigation(client, callback_query):
     elif action == "next":
         page_number += 1
  
-     
     await send_or_edit_help_page(client, callback_query.message, page_number)
- 
-     
     await callback_query.answer()
  
- 
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
  
 @app.on_message(filters.command("terms") & filters.private)
 async def terms(client, message):
@@ -193,29 +179,24 @@ async def terms(client, message):
 async def plan(client, message):
     plan_text = (
         "💎 **Upgrade to Premium** 💎\n\n"
-
         "🚀 **Premium Features**\n"
         "✅ No verification every 2 hours ⏳\n"
         "✅ Upload in bulk (up to 2000 files) 📂\n"
         "✅ Instantly skip the 300-second wait ⏱️\n"
         "✅ Extract unlimited videos from channels, groups, and bots 🎥\n\n"
-
         "🔹 **Free Plan**\n"
         "⏳ Validity: Unlimited\n"
         "💰 Price: ₹0 / $0.00 USDT\n"
         "❌ Limited features\n"
         "❌ Limited downloads\n\n"
-
         "🔟 **7-Day Plan**\n"
         "💰 Price: ₹30 / $0.50 USDT\n"
         "⏳ Validity: 7 days\n"
         "🎥 Extract unlimited videos\n\n"
-
         "🌀 **15-Day Plan**\n"
         "💰 Price: ₹60 / $0.90 USDT\n"
         "⏳ Validity: 15 days\n"
         "🎥 Extract unlimited videos\n\n"
-
         "🏆 **Monthly Plan**\n"
         "💰 Price: ₹90 / $1.20 USDT\n"
         "⏳ Validity: 30 days\n"
@@ -225,10 +206,8 @@ async def plan(client, message):
         "💰 Better Plans Then others 💯\n\n"
         "📲 To Upgrade: Contact @TEAM_AxxxS_BOT\n\n"
         "💳 Payment via UPI, Amazon Gift Card or USDT\n"
-        
     )
    
-     
     buttons = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("📜 See Terms", callback_data="see_terms")],
@@ -269,14 +248,14 @@ async def see_terms(client, callback_query):
     buttons = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("📋 See Plans", callback_data="see_plan")],
-            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/TEAM_AxxxS_BOT")],
+            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/@TEAM_AxxxS_BOT")],
         ]
     )
     await callback_query.message.edit_text(terms_text, reply_markup=buttons)
 
 @app.on_message(filters.command("guide"))
 async def guide_command(_, message: Message):
-    image_url = "https://i.postimg.cc/BXkchVpY/image.jpg"  # Direct image URL from PostImage
+    image_url = "https://i.postimg.cc/BXkchVpY/image.jpg"
     await message.reply_photo(
         photo=image_url,
         caption=(
@@ -292,8 +271,7 @@ async def guide_command(_, message: Message):
         quote=True
     )
 
-# Second page callback handler
-@app.on_callback_query(filters.regex("^guide_page_2$"))  # ^ and $ ensure exact match
+@app.on_callback_query(filters.regex("^guide_page_2$"))
 async def guide_page_2(_, query: CallbackQuery):
     await query.message.edit_text(
         "🛠️ **More Features 😎**\n\n"
@@ -309,8 +287,7 @@ async def guide_page_2(_, query: CallbackQuery):
         ])
     )
 
-# Back to first page
-@app.on_callback_query(filters.regex("^guide_page_1$"))  # ^ and $ ensure exact match
+@app.on_callback_query(filters.regex("^guide_page_1$"))
 async def guide_page_1(_, query: CallbackQuery):
     await query.message.edit_text(
         "**📘 How to Use @TEAM_AxxxS_BOT Guide 👇**\n\n"
@@ -349,3 +326,4 @@ async def guide_page_1(_, query: CallbackQuery):
             [InlineKeyboardButton("More Features 😎", callback_data="guide_page_2")]
         ])
     )
+ 
