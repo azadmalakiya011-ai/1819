@@ -308,7 +308,7 @@ async def guide_page_1(_, query: CallbackQuery):
         "⚡ Now use /batch to download multiple posts.\n"
         "▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭\n\n"
         "**हिंदी में 👇**\n\n"
-        "**@SRC_PRO_BOT** का कैसे उपयोग करें\n"
+        "**@TEAM_AxxxS_BOT** का कैसे उपयोग करें\n"
         "/start कमांड भेजें फिर\n"
         "/login कमांड भेजें\n"
         "────────────────────\n"
