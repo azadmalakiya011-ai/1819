@@ -12,16 +12,87 @@
 # License: MIT License
 # ---------------------------------------------------
 
+import datetime
 from pyrogram import filters
 from devgagan import app
 from config import OWNER_ID
 from devgagan.core.func import subscribe
 import asyncio
 from devgagan.core.func import *
-from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Message
+from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Message, BotCommand
 from pyrogram.raw.functions.bots import SetBotInfo
 from pyrogram.raw.types import InputUserSelf
- 
+from devgagan.core.mongo.db import db
+
+# Database Collections
+referral_collection = db["referrals"]
+users_collection = db["users"]
+
+# --- DATABASE FUNCTIONS FOR REFERRAL ---
+async def get_referral_data(user_id: int):
+    data = await referral_collection.find_one({"user_id": user_id})
+    if not data:
+        data = {"user_id": user_id, "referrals": 0, "redeemed": 0}
+        await referral_collection.insert_one(data)
+    return data
+
+async def add_referral(referrer_id: int, new_user_id: int):
+    user_exists = await users_collection.find_one({"user_id": new_user_id})
+    ref_exists = await referral_collection.find_one({"user_id": new_user_id})
+    if user_exists or ref_exists:
+        return False
+
+    await referral_collection.insert_one({"user_id": new_user_id, "referrals": 0, "redeemed": 0})
+    await referral_collection.update_one(
+        {"user_id": referrer_id},
+        {"$inc": {"referrals": 1}},
+        upsert=True
+    )
+    return True
+
+async def redeem_referral_points(user_id: int):
+    data = await get_referral_data(user_id)
+    total_refs = data.get("referrals", 0)
+    redeemed = data.get("redeemed", 0)
+    
+    available_points = total_refs - (redeemed * 3)
+    if available_points >= 3:
+        await referral_collection.update_one(
+            {"user_id": user_id},
+            {"$inc": {"redeemed": 1}}
+        )
+        return True
+    return False
+
+# --- REFERRAL START HANDLER (TOKEN ERROR PREVENTER) ---
+@app.on_message(filters.command("start") & filters.private, group=-2)
+async def ref_start_handler(client, message: Message):
+    if len(message.command) > 1 and message.command[1].startswith("ref_"):
+        try:
+            referrer_id = int(message.command[1].replace("ref_", ""))
+            new_user_id = message.from_user.id
+
+            if referrer_id != new_user_id:
+                success = await add_referral(referrer_id, new_user_id)
+                if success:
+                    try:
+                        await client.send_message(
+                            chat_id=referrer_id,
+                            text=f"🎉 **નવો રેફરલ જોડાયો!**\n\nયુઝર: {message.from_user.mention} તમારી લિંકથી સફળતાપૂર્વક જોડાયા છે."
+                        )
+                    except Exception:
+                        pass
+            
+            await message.reply_text(
+                f"👋 **નમસ્તે {message.from_user.first_name}!**\n\n"
+                "🎉 તમે સફળતાપૂર્વક રેફરલ લિંક દ્વારા બોટમાં જોડાઈ ગયા છો.\n\n"
+                "👉 બોટનો ઉપયોગ કરવા માટે /token મેળવી લો અથવા તમારા મિત્રોને /referral દ્વારા જોડીને Pro પ્લાન મેળવો!"
+            )
+            message.stop_propagation()
+        except Exception:
+            pass
+
+
 @app.on_message(filters.command("set"))
 async def set(_, message):
     if message.from_user.id not in OWNER_ID:
@@ -34,6 +105,7 @@ async def set(_, message):
         BotCommand("login", "🔑 Get into the bot"),
         BotCommand("logout", "🚪 Get out of the bot"),
         BotCommand("token", "🎲 Get 3 hours free access"),
+        BotCommand("referral", "🎁 Invite friends and get Pro"),
         BotCommand("adl", "👻 Download audio from 30+ sites"),
         BotCommand("dl", "💀 Download videos from 30+ sites"),
         BotCommand("freez", "🧊 Remove all expired user"),
@@ -56,8 +128,6 @@ async def set(_, message):
     ])
  
     await message.reply("✅ Commands configured successfully!")
- 
- 
  
  
 help_pages = [
@@ -113,44 +183,35 @@ help_pages = [
     )
 ]
  
- 
 async def send_or_edit_help_page(_, message, page_number):
     if page_number < 0 or page_number >= len(help_pages):
         return
- 
      
     prev_button = InlineKeyboardButton("◀️ Previous", callback_data=f"help_prev_{page_number}")
     next_button = InlineKeyboardButton("Next ▶️", callback_data=f"help_next_{page_number}")
- 
      
     buttons = []
     if page_number > 0:
         buttons.append(prev_button)
     if page_number < len(help_pages) - 1:
         buttons.append(next_button)
- 
      
     keyboard = InlineKeyboardMarkup([buttons])
- 
      
     await message.delete()
- 
      
     await message.reply(
         help_pages[page_number],
         reply_markup=keyboard
     )
  
- 
 @app.on_message(filters.command("help"))
 async def help(client, message):
     join = await subscribe(client, message)
     if join == 1:
         return
- 
      
     await send_or_edit_help_page(client, message, 0)
- 
  
 @app.on_callback_query(filters.regex(r"help_(prev|next)_(\d+)"))
 async def on_help_navigation(client, callback_query):
@@ -160,16 +221,9 @@ async def on_help_navigation(client, callback_query):
         page_number -= 1
     elif action == "next":
         page_number += 1
- 
      
     await send_or_edit_help_page(client, callback_query.message, page_number)
- 
-     
     await callback_query.answer()
- 
- 
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
  
 @app.on_message(filters.command("terms") & filters.private)
 async def terms(client, message):
@@ -188,46 +242,38 @@ async def terms(client, message):
     )
     await message.reply_text(terms_text, reply_markup=buttons)
  
- 
 @app.on_message(filters.command("plans") & filters.private)
 async def plan(client, message):
     plan_text = (
         "💎 **Upgrade to Premium** 💎\n\n"
-
         "🚀 **Premium Features**\n"
         "✅ No verification every 2 hours ⏳\n"
         "✅ Upload in bulk (up to 2000 files) 📂\n"
         "✅ Instantly skip the 300-second wait ⏱️\n"
         "✅ Extract unlimited videos from channels, groups, and bots 🎥\n\n"
-
         "🔹 **Free Plan**\n"
         "⏳ Validity: Unlimited\n"
         "💰 Price: ₹0 / $0.00 USDT\n"
         "❌ Limited features\n"
         "❌ Limited downloads\n\n"
-
         "🔟 **7-Day Plan**\n"
         "💰 Price: ₹30 / $0.50 USDT\n"
         "⏳ Validity: 7 days\n"
         "🎥 Extract unlimited videos\n\n"
-
         "🌀 **15-Day Plan**\n"
         "💰 Price: ₹60 / $0.90 USDT\n"
         "⏳ Validity: 15 days\n"
         "🎥 Extract unlimited videos\n\n"
-
         "🏆 **Monthly Plan**\n"
         "💰 Price: ₹90 / $1.20 USDT\n"
         "⏳ Validity: 30 days\n"
         "🎥 Extract unlimited videos\n"
         "⚡ High Speed 🚀\n"
-        "═══════════════════"
+        "═══════════════════\n"
         "💰 Better Plans Then others 💯\n\n"
         "📲 To Upgrade: Contact @TEAM_AxxxS_BOT\n\n"
         "💳 Payment via UPI, Amazon Gift Card or USDT\n"
-        
     )
-   
      
     buttons = InlineKeyboardMarkup(
         [
@@ -236,7 +282,6 @@ async def plan(client, message):
         ]
     )
     await message.reply_text(plan_text, reply_markup=buttons)
- 
  
 @app.on_callback_query(filters.regex("see_plan"))
 async def see_plan(client, callback_query):
@@ -256,7 +301,6 @@ async def see_plan(client, callback_query):
     )
     await callback_query.message.edit_text(plan_text, reply_markup=buttons)
  
- 
 @app.on_callback_query(filters.regex("see_terms"))
 async def see_terms(client, callback_query):
     terms_text = (
@@ -269,14 +313,14 @@ async def see_terms(client, callback_query):
     buttons = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("📋 See Plans", callback_data="see_plan")],
-            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/@TEAM_AxxxS_BOT")],
+            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/TEAM_AxxxS_BOT")],
         ]
     )
     await callback_query.message.edit_text(terms_text, reply_markup=buttons)
 
 @app.on_message(filters.command("guide"))
 async def guide_command(_, message: Message):
-    image_url = "https://i.postimg.cc/BXkchVpY/image.jpg"  # Direct image URL from PostImage
+    image_url = "https://i.postimg.cc/BXkchVpY/image.jpg"
     await message.reply_photo(
         photo=image_url,
         caption=(
@@ -292,8 +336,7 @@ async def guide_command(_, message: Message):
         quote=True
     )
 
-# Second page callback handler
-@app.on_callback_query(filters.regex("^guide_page_2$"))  # ^ and $ ensure exact match
+@app.on_callback_query(filters.regex("^guide_page_2$"))
 async def guide_page_2(_, query: CallbackQuery):
     await query.message.edit_text(
         "🛠️ **More Features 😎**\n\n"
@@ -309,8 +352,7 @@ async def guide_page_2(_, query: CallbackQuery):
         ])
     )
 
-# Back to first page
-@app.on_callback_query(filters.regex("^guide_page_1$"))  # ^ and $ ensure exact match
+@app.on_callback_query(filters.regex("^guide_page_1$"))
 async def guide_page_1(_, query: CallbackQuery):
     await query.message.edit_text(
         "**📘 How to Use @SRC_PRO_BOT Guide 👇**\n\n"
@@ -348,55 +390,9 @@ async def guide_page_1(_, query: CallbackQuery):
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("More Features 😎", callback_data="guide_page_2")]
         ])
-)
-
-# --- REFERRAL SYSTEM CODE ---
-import datetime
-from pyrogram import filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from devgagan.core.mongo.db import db
-
-# Database Collections
-referral_collection = db["referrals"]
-users_collection = db["users"]
-
-async def get_referral_data(user_id: int):
-    data = await referral_collection.find_one({"user_id": user_id})
-    if not data:
-        data = {"user_id": user_id, "referrals": 0, "redeemed": 0}
-        await referral_collection.insert_one(data)
-    return data
-
-async def add_referral(referrer_id: int, new_user_id: int):
-    # જો યુઝર પહેલેથી બોટમાં હોય તો રેફરલ ન ગણાય
-    user_exists = await users_collection.find_one({"user_id": new_user_id})
-    ref_exists = await referral_collection.find_one({"user_id": new_user_id})
-    if user_exists or ref_exists:
-        return False
-
-    await referral_collection.insert_one({"user_id": new_user_id, "referrals": 0, "redeemed": 0})
-    await referral_collection.update_one(
-        {"user_id": referrer_id},
-        {"$inc": {"referrals": 1}},
-        upsert=True
     )
-    return True
 
-async def redeem_referral_points(user_id: int):
-    data = await get_referral_data(user_id)
-    total_refs = data.get("referrals", 0)
-    redeemed = data.get("redeemed", 0)
-    
-    available_points = total_refs - (redeemed * 3)
-    if available_points >= 3:
-        await referral_collection.update_one(
-            {"user_id": user_id},
-            {"$inc": {"redeemed": 1}}
-        )
-        return True
-    return False
-
-# /referral મેનૂ
+# --- REFERRAL COMMAND MENU ---
 @app.on_message(filters.command("referral") & filters.private)
 async def referral_menu(client, message):
     user_id = message.from_user.id
@@ -429,7 +425,7 @@ async def referral_menu(client, message):
 
     await message.reply_text(text, reply_markup=buttons, disable_web_page_preview=True)
 
-# બટન ક્લિક હેન્ડલર
+# --- REFERRAL BUTTON CALLBACK HANDLER ---
 @app.on_callback_query(filters.regex("^(claim_pro_ref|close_ref)$"))
 async def ref_callback_handler(client, query):
     if query.data == "close_ref":
@@ -443,7 +439,6 @@ async def ref_callback_handler(client, query):
         if claimed:
             try:
                 expire_date = datetime.datetime.now() + datetime.timedelta(hours=3)
-                # સીધું ડેટાબેઝમાં ૩ કલાકનું પ્રીમિયમ સેટ થશે
                 await users_collection.update_one(
                     {"user_id": user_id},
                     {"$set": {"plan": "pro", "expiry": expire_date}},
