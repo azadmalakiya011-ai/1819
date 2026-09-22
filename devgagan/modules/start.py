@@ -23,11 +23,12 @@ from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBu
 from pyrogram.raw.functions.bots import SetBotInfo
 from pyrogram.raw.types import InputUserSelf
 from devgagan.core.mongo.db import db
-from devgagan.core.mongo.users_db import add_premium
 
 # Database Collections
 referral_collection = db["referrals"]
 users_collection = db["users"]
+plans_collection = db["plans"]
+premium_collection = db["premium"]
 
 # --- DATABASE FUNCTIONS FOR REFERRAL ---
 async def get_referral_data(user_id: int):
@@ -397,7 +398,7 @@ async def guide_page_1(_, query: CallbackQuery):
         "उदाहरण: 5 4 3 2 1\n\n"
         "✅ अब आप सफलतापूर्वक बॉट में लॉग इन हो जाएंगे\n"
         "────────────────────\n"
-        "⚡ एक बार में कई पोस्ट डाउनलोड करने के लिए /batch का उपयोग करें।"
+        "⚡ એક વારમાં વધુ પોસ્ટ ડાઉનલોડ કરવા /batch નો ઉપયોગ કરો."
         "▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭\n\n",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("More Features 😎", callback_data="guide_page_2")]
@@ -452,19 +453,28 @@ async def ref_callback_handler(client, query):
             try:
                 expire_date = datetime.datetime.now() + datetime.timedelta(hours=3)
                 
-                # 1. Bot ni original users_db file mathi add_premium function call
-                await add_premium(user_id, expire_date)
-                
-                # 2. Database na users collection ma seedho format update
+                # બોટના બધા જ શક્ય કલેક્શનમાં પ્રીમિયમ સેટ થશે
+                # 1. Users collection
                 await users_collection.update_one(
                     {"user_id": user_id},
-                    {"$set": {"plan": "Premium", "plan_type": "pro", "expiry": expire_date, "expire_date": expire_date}},
+                    {"$set": {"plan": "Premium", "plan_type": "pro", "expire_date": expire_date, "expiry": expire_date}},
+                    upsert=True
+                )
+                
+                # 2. Plans collection
+                await plans_collection.update_one(
+                    {"user_id": user_id},
+                    {"$set": {"plan": "Premium", "expire_date": expire_date, "expiry": expire_date}},
+                    upsert=True
+                )
+                
+                # 3. Premium collection
+                await premium_collection.update_one(
+                    {"user_id": user_id},
+                    {"$set": {"expire_date": expire_date, "expiry": expire_date}},
                     upsert=True
                 )
             except Exception:
                 pass
 
-            await query.answer("🎉 અભિનંદન! તમને ૩ કલાક માટે Pro પ્રીમિયમ પ્લાન મળી ગયો છે.", show_alert=True)
-            await referral_menu(client, query.message)
-        else:
-            await query.answer("❌ તમારી પાસે પૂરતા રેફરલ્સ નથી! Pro મેળવવા માટે ઓછામાં ઓછા ૩ મિત્રોને જોડો.", show_alert=True)
+        
