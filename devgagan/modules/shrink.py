@@ -141,6 +141,10 @@ async def token_command_handler(client: Client, message: Message):
 @app.on_message(filters.command("start"))
 async def token_handler(client, message):
     """Handle the /start command."""
+    # જો રેફરલ લિંક હોય તો આ ટોકન હેન્ડલર એક્ઝિક્યુટ થશે નહીં
+    if len(message.command) > 1 and message.command[1].startswith("ref_"):
+        return
+
     join = await subscribe(client, message)
     if join == 1:
         return
@@ -236,4 +240,4 @@ async def sharelink_handler(client, message: Message):
         f"Click a button below 👇 share me with your friends!",
         reply_markup=reply_markup
     )
- 
+    
