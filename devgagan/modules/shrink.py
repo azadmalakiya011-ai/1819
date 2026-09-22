@@ -141,8 +141,8 @@ async def token_command_handler(client: Client, message: Message):
 @app.on_message(filters.command("start"))
 async def token_handler(client, message):
     """Handle the /start command."""
-    # જો રેફરલ લિંક હોય તો આ ટોકન હેન્ડલર એક્ઝિક્યુટ થશે નહીં
-    if len(message.command) > 1 and message.command[1].startswith("ref_"):
+    # જો લિંકમાં રેફરલ (ref_) હોય તો ટોકન સિસ્ટમ તરત અટકી જશે
+    if len(message.command) > 1 and str(message.command[1]).startswith("ref_"):
         return
 
     join = await subscribe(client, message)
@@ -185,6 +185,11 @@ async def token_handler(client, message):
         return
  
     param = message.command[1] if len(message.command) > 1 else None
+    
+    # જો કોઈ પણ રીતે પેરામીટર ref_ હોય તો લાલ એરર મોકલ્યા વગર સીધા બહાર નીકળી જવું
+    if param and str(param).startswith("ref_"):
+        return
+
     freecheck = await chk_user(message, user_id)
     if freecheck != 1:
         await message.reply("You are a premium user Cutie 😉\n\n Just /start & Use Me  🫠")
@@ -217,7 +222,9 @@ async def token_handler(client, message):
             await message.reply("✅ You have been verified successfully! Enjoy your session for next 3 hours.")
             return
         else:
-            await message.reply("❌ Invalid or expired verification link. Please generate a new token.")       
+            # રેફરલ લિંક ન હોય અને માત્ર ખોટો ટોકન હોય ત્યારે જ લાલ એરર આવશે
+            if not str(param).startswith("ref_"):
+                await message.reply("❌ Invalid or expired verification link. Please generate a new token.")       
             return
 
 
