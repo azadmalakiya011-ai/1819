@@ -65,7 +65,7 @@ async def redeem_referral_points(user_id: int):
     return False
 
 # --- REFERRAL START HANDLER (TOKEN ERROR PREVENTER) ---
-@app.on_message(filters.command("start") & filters.private, group=-2)
+@app.on_message(filters.command("start") & filters.private, group=-100)
 async def ref_start_handler(client, message: Message):
     if len(message.command) > 1 and message.command[1].startswith("ref_"):
         try:
@@ -89,6 +89,7 @@ async def ref_start_handler(client, message: Message):
                 "👉 બોટનો ઉપયોગ કરવા માટે /token મેળવી લો અથવા તમારા મિત્રોને /referral દ્વારા જોડીને Pro પ્લાન મેળવો!"
             )
             message.stop_propagation()
+            return
         except Exception:
             pass
 
@@ -313,7 +314,7 @@ async def see_terms(client, callback_query):
     buttons = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("📋 See Plans", callback_data="see_plan")],
-            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/TEAM_AxxxS_BOT")],
+            [InlineKeyboardButton("💬 Contact Now", url="https://t.me/@TEAM_AxxxS_BOT")],
         ]
     )
     await callback_query.message.edit_text(terms_text, reply_markup=buttons)
@@ -451,4 +452,4 @@ async def ref_callback_handler(client, query):
             await referral_menu(client, query.message)
         else:
             await query.answer("❌ તમારી પાસે પૂરતા રેફરલ્સ નથી! Pro મેળવવા માટે ઓછામાં ઓછા ૩ મિત્રોને જોડો.", show_alert=True)
-         
+    
