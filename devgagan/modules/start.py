@@ -349,3 +349,111 @@ async def guide_page_1(_, query: CallbackQuery):
             [InlineKeyboardButton("More Features 😎", callback_data="guide_page_2")]
         ])
 )
+
+# --- REFERRAL SYSTEM CODE ---
+import datetime
+from pyrogram import filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from devgagan.core.mongo.db import db
+
+# Database Collections
+referral_collection = db["referrals"]
+users_collection = db["users"]
+
+async def get_referral_data(user_id: int):
+    data = await referral_collection.find_one({"user_id": user_id})
+    if not data:
+        data = {"user_id": user_id, "referrals": 0, "redeemed": 0}
+        await referral_collection.insert_one(data)
+    return data
+
+async def add_referral(referrer_id: int, new_user_id: int):
+    # જો યુઝર પહેલેથી બોટમાં હોય તો રેફરલ ન ગણાય
+    user_exists = await users_collection.find_one({"user_id": new_user_id})
+    ref_exists = await referral_collection.find_one({"user_id": new_user_id})
+    if user_exists or ref_exists:
+        return False
+
+    await referral_collection.insert_one({"user_id": new_user_id, "referrals": 0, "redeemed": 0})
+    await referral_collection.update_one(
+        {"user_id": referrer_id},
+        {"$inc": {"referrals": 1}},
+        upsert=True
+    )
+    return True
+
+async def redeem_referral_points(user_id: int):
+    data = await get_referral_data(user_id)
+    total_refs = data.get("referrals", 0)
+    redeemed = data.get("redeemed", 0)
+    
+    available_points = total_refs - (redeemed * 3)
+    if available_points >= 3:
+        await referral_collection.update_one(
+            {"user_id": user_id},
+            {"$inc": {"redeemed": 1}}
+        )
+        return True
+    return False
+
+# /referral મેનૂ
+@app.on_message(filters.command("referral") & filters.private)
+async def referral_menu(client, message):
+    user_id = message.from_user.id
+    bot_username = (await client.get_me()).username
+    data = await get_referral_data(user_id)
+
+    total_refs = data.get("referrals", 0)
+    redeemed = data.get("redeemed", 0)
+    can_redeem = (total_refs - (redeemed * 3)) // 3
+
+    ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
+
+    text = (
+        f"👑 **{message.from_user.first_name}**\n"
+        f"`/referral`\n"
+        f"🎁 **Referral Program**\n\n"
+        f"_Invite friends and earn Pro!_\n"
+        f"_Every 3 referrals = 3 Hours Pro_\n\n"
+        f"**Your Referrals:** {total_refs}\n"
+        f"**Redeemed:** {redeemed} time(s)\n"
+        f"**Can Redeem:** {can_redeem} time(s)\n\n"
+        f"**Your Link:**\n`{ref_link}`"
+    )
+
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📢 Share Link", url=f"https://t.me/share/url?url={ref_link}&text=Join%20this%20awesome%20bot!")],
+        [InlineKeyboardButton("💎 Claim Pro", callback_data="claim_pro_ref")],
+        [InlineKeyboardButton("✖ Close", callback_data="close_ref")]
+    ])
+
+    await message.reply_text(text, reply_markup=buttons, disable_web_page_preview=True)
+
+# બટન ક્લિક હેન્ડલર
+@app.on_callback_query(filters.regex("^(claim_pro_ref|close_ref)$"))
+async def ref_callback_handler(client, query):
+    if query.data == "close_ref":
+        await query.message.delete()
+        return
+
+    if query.data == "claim_pro_ref":
+        user_id = query.from_user.id
+        claimed = await redeem_referral_points(user_id)
+
+        if claimed:
+            try:
+                expire_date = datetime.datetime.now() + datetime.timedelta(hours=3)
+                # સીધું ડેટાબેઝમાં ૩ કલાકનું પ્રીમિયમ સેટ થશે
+                await users_collection.update_one(
+                    {"user_id": user_id},
+                    {"$set": {"plan": "pro", "expiry": expire_date}},
+                    upsert=True
+                )
+            except Exception:
+                pass
+
+            await query.answer("🎉 અભિનંદન! તમને ૩ કલાક માટે Pro પ્રીમિયમ મળી ગયું છે.", show_alert=True)
+            await referral_menu(client, query.message)
+        else:
+            await query.answer("❌ તમારી પાસે પૂરતા રેફરલ્સ નથી! Pro મેળવવા માટે ઓછામાં ઓછા ૩ મિત્રોને જોડો.", show_alert=True)
+         
