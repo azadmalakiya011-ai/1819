@@ -478,4 +478,29 @@ async def ref_callback_handler(client, query):
                     "expiry": expiry_time
                 }
                 await users_collection.update_one({"user_id": user_id}, {"$set": update_dict}, upsert=True)
-                await plans_collection.update_one({"user_id"
+                                await plans_collection.update_one({"user_id": user_id}, {"$set": update_dict}, upsert=True)
+
+                # ટોકન ટેબલમાં પણ એન્ટ્રી જેથી કોઈ પણ લિમિટ ન આવે
+                await tokens_collection.update_one(
+                    {"user_id": user_id},
+                    {"$set": {"user_id": user_id, "param": "REFERRAL_PRO", "expires_at": expiry_time}},
+                    upsert=True
+                )
+            except Exception as e:
+                print(f"Referral Claim Error: {e}")
+
+            await query.answer("🎉 સફળતાપૂર્વક ક્લેમ થઈ ગયું!", show_alert=True)
+            await query.message.reply_text(
+                "🎉 **અભિનંદન!**\n\n"
+                "તમને ૩ કલાક માટે **Pro Plan** મળી ગયો છે!\n"
+                "હવે બોટમાં ડાયરેક્ટ કોઈ પણ લિંક મોકલીને ડાઉનલોડ કરી શકો છો."
+            )
+            await referral_menu(client, query.message)
+        else:
+            await query.answer("❌ તમારી પાસે પૂરતા રેફરલ્સ નથી!", show_alert=True)
+            await query.message.reply_text(
+                "❌ **તમારી પાસે પૂરતા રેફરલ્સ નથી!**\n\n"
+                "👉 નવો Pro પ્લાન ક્લેમ કરવા માટે હજુ મિત્રોને જોડો.\n"
+                "_(દર ૩ રેફરલે ૧ વાર ૩ કલાક માટે Pro મળશે)_"
+            )
+            
