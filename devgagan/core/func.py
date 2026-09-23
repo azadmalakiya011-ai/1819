@@ -13,7 +13,7 @@
 # ---------------------------------------------------
 
 import math
-import time, re
+import time, re, json
 from pyrogram import enums
 from config import CHANNEL_ID, OWNER_ID 
 from devgagan.core.mongo.plans_db import premium_users
@@ -183,30 +183,51 @@ def get_link(string):
         return False
 
 def video_metadata(file):
-    default_values = {'width': 1, 'height': 1, 'duration': 1}
+    default_values = {'width': 1280, 'height': 720, 'duration': 0}
     try:
-        vcap = cv2.VideoCapture(file)
-        if not vcap.isOpened():
-            return default_values  
-
-        width = round(vcap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = round(vcap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = vcap.get(cv2.CAP_PROP_FPS)
-        frame_count = vcap.get(cv2.CAP_PROP_FRAME_COUNT)
-
-        if fps <= 0:
-            return default_values  
-
-        duration = round(frame_count / fps)
-        if duration <= 0:
-            return default_values  
-
-        vcap.release()
-        return {'width': width, 'height': height, 'duration': duration}
-
+        # પ્રથમ ffprobe થી ચેક કરશે (MKV અને અન્ય તમામ ફોર્મેટ માટે સાચો સમય)
+        cmd = [
+            "ffprobe",
+            "-v", "quiet",
+            "-print_format", "json",
+            "-show_format",
+            "-show_streams",
+            file
+        ]
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode == 0:
+            probe = json.loads(result.stdout)
+            duration = int(float(probe.get("format", {}).get("duration", 0)))
+            width = 1280
+            height = 720
+            for stream in probe.get("streams", []):
+                if stream.get("codec_type") == "video":
+                    width = int(stream.get("width", 1280))
+                    height = int(stream.get("height", 720))
+                    if not duration:
+                        duration = int(float(stream.get("duration", 0)))
+                    break
+            if duration > 0:
+                return {'width': width, 'height': height, 'duration': duration}
     except Exception as e:
-        print(f"Error in video_metadata: {e}")
-        return default_values
+        print(f"FFprobe metadata error: {e}")
+
+    try:
+        # OpenCV બેકઅપ
+        vcap = cv2.VideoCapture(file)
+        if vcap.isOpened():
+            width = round(vcap.get(cv2.CAP_PROP_FRAME_WIDTH)) or 1280
+            height = round(vcap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or 720
+            fps = vcap.get(cv2.CAP_PROP_FPS)
+            frame_count = vcap.get(cv2.CAP_PROP_FRAME_COUNT)
+            vcap.release()
+            if fps > 0 and frame_count > 0:
+                duration = round(frame_count / fps)
+                return {'width': width, 'height': height, 'duration': duration}
+    except Exception as e:
+        print(f"OpenCV metadata error: {e}")
+
+    return default_values
 
 def hhmmss(seconds):
     return time.strftime('%H:%M:%S',time.gmtime(seconds))
@@ -303,4 +324,4 @@ async def prog_bar(current, total, ud_type, message, start):
                 text="{}     {}".format(ud_type, tmp),)             
         except:
             pass
-            
+        
