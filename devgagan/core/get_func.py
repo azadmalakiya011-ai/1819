@@ -941,7 +941,7 @@ async def callback_query_handler(event):
             [Button.inline(f"╰‿╯ ҡσℓเ ⚝ ⚡{pyrogram_check}", b'pyrogram')],
             [Button.inline(f"⚠️ Coming soon V2 {telethon_check}", b'telethon')]
         ]
-        await event.edit("Choose your preferred upload method:\n\n__**Note:** **╰‿╯ ҡσℓเ ⚝ v2 ⚡**, built on Telethon(base), by @TEAM_A_S_BOT still in beta.__", buttons=buttons)
+        await event.edit("Choose your preferred upload method:\n\n__**Note:** **╰‿╯ ҡσℓเ ⚝ v2 ⚡**, built on Telethon(base), by @TEAM_AxxxS_BOT still in beta.__", buttons=buttons)
 
     elif event.data == b'pyrogram':
         save_user_upload_method(user_id, "Pyrogram")
