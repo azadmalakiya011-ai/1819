@@ -665,12 +665,8 @@ async def send_media_message(app, target_chat_id, msg, caption, topic_id):
 
         # Send the message with the right method
         if msg.video:
-            return await app.send_video(
-                target_chat_id,
-                msg.video.file_id,
-                caption=caption,
-                reply_to_message_id=topic_id,
-            )
+            return await app.send_video(target_chat_id, msg.video.file_id, caption=caption, duration=(msg.video.duration or 0), width=(msg.video.width or 1280), height=(msg.video.height or 720), supports_streaming=True, reply_to_message_id=topic_id)
+            
 
         if msg.document:
             return await app.send_document(
