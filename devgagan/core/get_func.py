@@ -159,7 +159,8 @@ async def log_upload(user_id, file_type, file_msg, upload_method, duration=None,
 async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
     try:
         upload_method = await fetch_upload_method(sender)
-        width, height, duration = 1280, 720, 0
+        metadata = video_metadata(file); width, height, duration = metadata.get('width', 1280), metadata.get('height', 720), metadata.get('duration', 0)
+        
         
         thumb_path = thumbnail(sender) or await screenshot(file, duration, sender)
         
