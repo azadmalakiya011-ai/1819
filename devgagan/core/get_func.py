@@ -210,8 +210,7 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
                     progress=progress_bar,
                     progress_args=("╔══━⚡️Uploading...⚡️━══╗\n", edit, time.time())
                 )
-
-             # Send to log group by forwarding (Super Fast)
+                # Send to log group by forwarding (Super Fast)
         if LOG_GROUP:
             await dm.copy(LOG_GROUP)
             
