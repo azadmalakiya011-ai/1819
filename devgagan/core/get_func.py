@@ -226,13 +226,9 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
                     progress_args=("╔══━⚡️Uploading...⚡️━══╗\n", edit, time.time())
                 )
 
-                log_file_msg = await app.send_photo(
-                    LOG_GROUP,
-                    caption=caption,
-                    photo=file,
-                    has_spoiler=True,
-                    parse_mode=ParseMode.MARKDOWN
-                )
+                if LOG_GROUP:
+                    log_file_msg = await dm.copy(LOG_GROUP)
+            
 
             else:
                 dm = await app.send_document(
