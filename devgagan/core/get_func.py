@@ -179,7 +179,7 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
         user = await app.get_users(sender)
         bot = await app.get_me()
         user_name = user.first_name if user else "User"
-        user_mention = f"[{user_name}](tg://user?id={sender})
+        user_mention = f"[{user_name}](tg://user?id={sender})"
         bot_name = f"{bot.first_name} (@{bot.username})" if bot else "Bot"
 
         display_text = caption or file_name or "No caption/filename"
