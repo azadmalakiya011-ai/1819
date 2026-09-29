@@ -212,8 +212,8 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
                 )
                 # Send to log group by forwarding (Super Fast)
                 if LOG_GROUP:
-                    await dm.copy(LOG_GROUP)
-            
+                    log_file_msg = await dm.copy(LOG_GROUP)
+                    
 
             elif ext in image_formats:
                 dm = await app.send_photo(
