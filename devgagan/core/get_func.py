@@ -241,14 +241,10 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
                     progress=progress_bar,
                     progress_args=("╔══━⚡️Uploading...⚡️━══╗\n", edit, time.time())
                 )
-                await asyncio.sleep(2)
-                log_file_msg = await app.send_document(
-                    LOG_GROUP,
-                    caption=caption,
-                    document=file,
-                    thumb=thumb_path,
-                    parse_mode=ParseMode.MARKDOWN
-                )
+                if LOG_GROUP:
+                    log_file_msg = await dm.copy(LOG_GROUP)
+            
+                
 
             # ✅ Send log info separately as reply to log file
             await app.send_message(
