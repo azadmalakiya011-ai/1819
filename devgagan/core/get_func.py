@@ -584,12 +584,8 @@ async def copy_message_with_chat_id(app, userbot, sender, chat_id, message_id, e
                 return
 
             final_caption = format_caption(msg.caption.markdown if msg.caption else "", sender, custom_caption)
-            file = await fast_download(userbot,
-                                  
-                msg,
-                progress=progress_bar,
-                progress_args=("╭─────────────────────╮\n│      **__Downloading__...**\n├─────────────────────", edit, time.time())
-            )
+            file = await fast_download(userbot, msg, reply=edit)
+            
             file = await rename_file(file, sender)
 
             if msg.photo:
