@@ -396,10 +396,13 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
 
         # Download media
         file = await fast_download(
-            userbot,
-            msg,
-            reply=edit
+            client=userbot,
+            msg=msg,
+            reply=edit,
+            name=file_name,
+            user_id=sender
                 )
+        
         
         
         
