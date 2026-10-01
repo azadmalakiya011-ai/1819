@@ -398,10 +398,9 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
         file = await fast_download(
             userbot,
             msg,
-            file_name=file_name,            
-            progress_args=("╔══━⚡️ Downloading ⚡️━══╗\n", edit, time.time()),
-            progress=progress_bar
+            reply=edit
                 )
+        
         
         
         caption = await get_final_caption(msg, sender)
