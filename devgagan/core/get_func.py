@@ -34,7 +34,7 @@ from pyrogram.types import Message
 from config import MONGO_DB as MONGODB_CONNECTION_STRING, LOG_GROUP, OWNER_ID, STRING, API_ID, API_HASH
 from devgagan.core.mongo import db as odb
 from telethon import TelegramClient, events, Button
-from devgagantools import fast_upload
+from devgagantools import fast_upload, fast_download
 from datetime import datetime
 import asyncio
 import unicodedata
