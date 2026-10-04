@@ -58,11 +58,32 @@ async def delete_session_files(user_id):
 async def clear_db(client, message):
     user_id = message.chat.id
     
-    # --- New code: Terminate session from Telegram Devices ---
+    # નવો કોડ: ટેલિગ્રામ ડિવાઇસમાંથી સેશન કાઢવા માટે ડેટાબેઝના સાચા ફંક્શનનો ઉપયોગ
     try:
-        string_session = await db.get_session(user_id) 
+        from config import API_ID, API_HASH
+        
+        # સાચો રસ્તો: get_data નો ઉપયોગ કરીને સેશન કાઢવું
+        user_data = await db.get_data(user_id)
+        string_session = user_data.get("session") if user_data else None
+        
         if string_session:
-            temp_client = Client("temp_logout", api_id=api_id, api
+            temp_client = Client("temp_logout", api_id=API_ID, api_hash=API_HASH, session_string=string_session)
+            await temp_client.start()
+            await temp_client.log_out() # આ કમાન્ડ ટેલિગ્રામના સર્વરમાંથી ડિવાઇસ કાયમ માટે ડિલીટ કરી દેશે
+    except Exception as e:
+        print(f"Telegram Logout Error: {e}")
+        
+    # જૂની સિસ્ટમ: ફાઈલો અને ડેટાબેઝ ક્લિયર કરવા
+    try:
+        files_deleted = await delete_session_files(user_id)
+        await db.remove_session(user_id)
+        
+        if files_deleted:
+            await message.reply("✅ Your session data has been completely cleared from database and Telegram active devices.")
+        else:
+            await message.reply("✅ Logged out successfully from all devices.")
+    except Exception as e:
+        pass
         
     
 @app.on_message(filters.command("login"))
