@@ -57,6 +57,19 @@ async def delete_session_files(user_id):
 @app.on_message(filters.command("logout"))
 async def clear_db(client, message):
     user_id = message.chat.id
+    
+    # --- New code: Terminate session from Telegram Devices ---
+    try:
+        string_session = await db.get_session(user_id) 
+        if string_session:
+            temp_client = Client("temp_logout", api_id=api_id, api_hash=api_hash, session_string=string_session)
+            await temp_client.start()
+            await temp_client.log_out() 
+    except Exception as e:
+        pass 
+    # -------------------------------------------------------------
+    
+    # Old system: Clear files and database
     files_deleted = await delete_session_files(user_id)
     try:
         await db.remove_session(user_id)
@@ -64,9 +77,9 @@ async def clear_db(client, message):
         pass
 
     if files_deleted:
-        await message.reply("✅ Your session data and files have been cleared from memory and disk.")
+        await message.reply("✅ Your session data and files have been cleared from memory, disk, and active devices.")
     else:
-        await message.reply("✅ Logged out with flag -m")
+        await message.reply("✅ Logged out successfully.")
         
     
 @app.on_message(filters.command("login"))
