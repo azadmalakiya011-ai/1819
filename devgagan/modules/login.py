@@ -62,24 +62,7 @@ async def clear_db(client, message):
     try:
         string_session = await db.get_session(user_id) 
         if string_session:
-            temp_client = Client("temp_logout", api_id=api_id, api_hash=api_hash, session_string=string_session)
-            await temp_client.start()
-            await temp_client.log_out() 
-    except Exception as e:
-        pass 
-    # -------------------------------------------------------------
-    
-    # Old system: Clear files and database
-    files_deleted = await delete_session_files(user_id)
-    try:
-        await db.remove_session(user_id)
-    except Exception:
-        pass
-
-    if files_deleted:
-        await message.reply("✅ Your session data and files have been cleared from memory, disk, and active devices.")
-    else:
-        await message.reply("✅ Logged out successfully.")
+            temp_client = Client("temp_logout", api_id=api_id, api
         
     
 @app.on_message(filters.command("login"))
