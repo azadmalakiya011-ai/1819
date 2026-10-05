@@ -287,7 +287,7 @@ async def batch_link(_, message):
                     await process_and_upload_link(userbot, user_id, msg.id, link, 0, message)
                     try:
                             await msg.delete()
-                        except Exception:
+                    except Exception:
                             pass
                             
                     try:
