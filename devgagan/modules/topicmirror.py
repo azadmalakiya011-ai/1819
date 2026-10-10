@@ -8,7 +8,7 @@ from devgagan import app, sex
 from devgagan.modules.main import initialize_userbot
 from devgagan.core.get_func import get_msg, user_chat_ids
 
-BOT_OWNER_ID = 7899675722
+BOT_OWNER_ID = 8326187435
 
 user_mirror_data = {}
 mirror_cancel_flags = {}
