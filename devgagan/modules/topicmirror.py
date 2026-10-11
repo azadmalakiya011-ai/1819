@@ -662,4 +662,167 @@ async def mirror_all_topics_handler(client, message):
             await userbot.stop()
         except Exception:
             pass
-                       
+
+
+
+
+
+# ૫. /sync_group - સોર્સ લિંક અને ટાર્ગેટ Chat ID સાથે આખું ગ્રૂપ સિંક કરવું
+@app.on_message(filters.command("sync_group") & filters.private)
+async def sync_entire_group(client, message):
+    user_id = message.chat.id
+    if not is_authorized(user_id):
+        return await message.reply_text("❌ તમારી પાસે આ કમાન્ડ વાપરવાનો એક્સેસ નથી.")
+
+    try:
+        # ૧. સોર્સ ગ્રૂપની લિંક મેળવવી
+        ask = await app.ask(user_id, "🔗 **સોર્સ ગ્રૂપની લિંક (કોઈપણ મેસેજ કે ટોપિકની લિંક) મોકલો:**")
+        s_link = ask.text.strip()
+        s_chat_id, _, _ = parse_tg_link(s_link)
+
+        # ૨. ટાર્ગેટ ગ્રૂપની Chat ID અથવા લિંક મેળવવી
+        ask = await app.ask(user_id, "🎯 **તમારા ટાર્ગેટ ગ્રૂપની Chat ID (દા.ત. -1004319237048) અથવા લિંક મોકલો:**")
+        t_input = ask.text.strip()
+
+        if t_input.startswith("-100") or t_input.lstrip("-").isdigit():
+            t_chat_id = int(t_input)
+        else:
+            t_chat_id, _, _ = parse_tg_link(t_input)
+
+    except Exception as e:
+        return await app.send_message(user_id, f"❌ ઇનપુટ વાંચવામાં ભૂલ થઈ: `{e}`")
+
+    start_time = time.time()
+    mirror_cancel_flags[user_id] = False
+    status = await app.send_message(user_id, "🔍 **બંને ગ્રૂપના બધા ટોપિક્સ અને ફાઈલો સ્કેન થઈ રહ્યા છે...**")
+
+    userbot = await initialize_userbot(user_id)
+    if not userbot:
+        return await status.edit("❌ યુઝરબોટ ચાલુ નથી. પહેલા `/login` કરો.")
+
+    try:
+        # ૧. ટાર્ગેટ ગ્રૂપના ટોપિક્સ અને હાજર ફાઈલો મેપ કરવી
+        target_topics = {}  # {topic_name: {"id": thread_id, "files": set()}}
+        async for t_msg in userbot.get_chat_history(t_chat_id, limit=3000):
+            th_id = getattr(t_msg, "message_thread_id", None) or getattr(t_msg, "reply_to_top_message_id", 1)
+            
+            # ટોપિક નામ મેળવવું
+            if getattr(t_msg, "forum_topic_created", None):
+                t_name = t_msg.forum_topic_created.name.strip().lower()
+                if t_name not in target_topics:
+                    target_topics[t_name] = {"id": t_msg.id, "files": set()}
+
+            # ફાઈલો નોંધવી
+            key = get_media_info(t_msg)
+            if key:
+                for t_name, data in target_topics.items():
+                    if data["id"] == th_id:
+                        data["files"].add(key)
+
+        # ૨. સોર્સ ગ્રૂપના ટોપિક્સ અને મીડિયા મેસેજ કલેક્ટ કરવા
+        source_topics = {}  # {topic_name: {"id": thread_id, "msgs": []}}
+        source_id_to_name = {}
+        async for s_msg in userbot.get_chat_history(s_chat_id, limit=3000):
+            if getattr(s_msg, "forum_topic_created", None):
+                s_name = s_msg.forum_topic_created.name.strip().lower()
+                source_topics[s_name] = {"id": s_msg.id, "msgs": []}
+                source_id_to_name[s_msg.id] = s_name
+
+            th_id = getattr(s_msg, "message_thread_id", None) or getattr(s_msg, "reply_to_top_message_id", 1)
+            if th_id in source_id_to_name:
+                s_name = source_id_to_name[th_id]
+                key = get_media_info(s_msg)
+                if key:
+                    source_topics[s_name]["msgs"].append((key, s_msg))
+
+        total_synced_files = 0
+        total_already_files = 0
+
+        # ૩. દરેક મેચ થતા ટોપિકમાં બાકી રહેલી ફાઈલો ટ્રાન્સફર કરવી
+        for t_name, s_data in source_topics.items():
+            if mirror_cancel_flags.get(user_id, False):
+                break
+
+            if t_name in target_topics:
+                t_topic_id = target_topics[t_name]["id"]
+                t_files = target_topics[t_name]["files"]
+                
+                # માત્ર ખૂટતી ફાઈલો ફિલ્ટર કરવી
+                pending_msgs = [msg for key, msg in s_data["msgs"] if key not in t_files]
+                pending_msgs.reverse()
+
+                topic_new_count = 0
+                total_already_files += len(t_files)
+
+                if pending_msgs:
+                    await status.edit(f"📂 **ટોપિક સિંક થઈ રહ્યો છે:** `{t_name}`\n⏳ બાકી ફાઈલો: `{len(pending_msgs)}`")
+
+                    for s_msg in pending_msgs:
+                        if mirror_cancel_flags.get(user_id, False):
+                            break
+
+                        uploaded = False
+                        user_chat_ids[user_id] = f"{t_chat_id}/{t_topic_id}"
+
+                        # ડાયરેક્ટ કોપી
+                        try:
+                            await userbot.copy_message(
+                                chat_id=t_chat_id,
+                                from_chat_id=s_chat_id,
+                                message_id=s_msg.id,
+                                message_thread_id=t_topic_id
+                            )
+                            uploaded = True
+                            topic_new_count += 1
+                        except Exception:
+                            pass
+
+                        # કોપી ન થાય તો ડાઉનલોડ/અપલોડ
+                        if not uploaded:
+                            temp = await app.send_message(user_id, f"🔄 પ્રોસેસિંગ `{s_msg.id}`...")
+                            fake_link = f'https://t.me/c/{str(s_chat_id).replace("-100", "")}/{s_msg.id}'
+                            try:
+                                await get_msg(userbot, user_id, temp.id, fake_link, 0, message)
+                                topic_new_count += 1
+                            except FloodWait as e:
+                                await asyncio.sleep(e.value + 1)
+                            except Exception:
+                                pass
+                            try:
+                                await temp.delete()
+                            except Exception:
+                                pass
+
+                        await asyncio.sleep(2)
+
+                    total_synced_files += topic_new_count
+
+                    # ચોક્કસ ટોપિકમાં કમ્પલીટ મેસેજ
+                    topic_done_msg = (
+                        "✅ 𝗖ꪮ𝗺𝗽𝗹𝗲𝘁𝗲 𝗛ꪮ 𝗚𝗮𝘆𝗮 𝗕ꪮ$$ 😎\n\n"                         f"📁 Topic: {t_name.title()}\n"                         f"📥 New Files Downloaded: {topic_new_count} files\n"                         f"⏩ Already Up-to-date: {len(t_files)} files"                     )                     try:                         await app.send_message(chat_id=t_chat_id, text=topic_done_msg, message_thread_id=t_topic_id)                     except Exception:                         pass          # ૪. આખા ગ્રૂપનો સમય અને જનરલ ચેટ મેસેજ         elapsed = time.time() - start_time         mins = int(elapsed // 60)         secs = int(elapsed \% 60)         time_taken_str = f"{mins}m, {secs}s"          general_complete_msg = (             "✅ 𝗖ꪮ𝗺𝗽𝗹𝗲𝘁𝗲 𝗛ꪮ 𝗚𝗮𝘆𝗮 𝗕ꪮ$$ 😎\n\n"
+            f"📁 New Files Downloaded & Synced: {total_synced_files} files\n"
+            f"⏩ Already Up-to-date: {total_already_files} files\n"
+            f"⏱ Time Taken: {time_taken_str}"
+        )
+
+        # General Chat માં મોકલવું
+        try:
+            await app.send_message(chat_id=t_chat_id, text=general_complete_msg)
+        except Exception:
+            try:
+                await userbot.send_message(chat_id=t_chat_id, text=general_complete_msg)
+            except Exception:
+                pass
+
+        await status.edit(f"🎉 **આખા ગ્રૂપનું સિંકિંગ સફળતાપૂર્વક પૂરું થયું!**\n\n{general_complete_msg}")
+
+    except Exception as e:
+        await status.edit(f"❌ એરર આવી: `{e}`")
+    finally:
+        mirror_cancel_flags.pop(user_id, None)
+        user_chat_ids.pop(user_id, None)
+        try:
+            await userbot.stop()
+        except Exception:
+            pass
+            
