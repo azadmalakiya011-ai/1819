@@ -369,7 +369,7 @@ async def scan_mirror_compare(client, message):
         except Exception:
             pass
 
-# ૪. /sync_mirror - બાકી ફાઇલો સિંક કરવી
+# ૪. /sync_mirror - બાકી રહેલી ફાઇલો સિંક કરવી
 @app.on_message(filters.command("sync_mirror") & filters.private)
 async def sync_mirror_missing(client, message):
     user_id = message.chat.id
@@ -389,43 +389,73 @@ async def sync_mirror_missing(client, message):
 
     mirror_cancel_flags[user_id] = False
     user_chat_ids[user_id] = f"{t_chat_id}/{t_topic_id}"
-    status = await app.send_message(user_id, "🔄 બાકી રહેલી ફાઈલો સિંક થઈ રહી છે...")
+    status = await app.send_message(user_id, "🔄 બાકી રહેલા વિડિયો સ્કેન અને સિંક થઈ રહ્યા છે...")
 
     userbot = await initialize_userbot(user_id)
     if not userbot:
-        return await status.edit("❌ યુઝરબોટ ચાલુ નથી.")
+        return await status.edit("❌ યુઝરબોટ ચાલુ નથી. પહેલા `/login` કરો.")
 
     try:
-        target_files = set()
-        async for t_msg in userbot.get_chat_history(t_chat_id, limit=200):
+        target_file_ids = set()
+        async for t_msg in userbot.get_chat_history(t_chat_id, limit=500):
             th_id = getattr(t_msg, "message_thread_id", None) or t_topic_id
             if int(th_id) == int(t_topic_id) and t_msg.media:
-                size = getattr(getattr(t_msg, t_msg.media.value, None), "file_size", None)
-                if size:
-                    target_files.add(size)
+                media_obj = getattr(t_msg, t_msg.media.value, None)
+                if media_obj:
+                    f_id = getattr(media_obj, "file_unique_id", None) or getattr(media_obj, "file_size", None)
+                    if f_id:
+                        target_file_ids.add(str(f_id))
 
-        synced = 0
-        async for s_msg in userbot.get_chat_history(s_chat_id, limit=200):
-            if mirror_cancel_flags.get(user_id, False):
-                break
+        missing_msgs = []
+        async for s_msg in userbot.get_chat_history(s_chat_id, limit=500):
             th_id = getattr(s_msg, "message_thread_id", None) or s_topic_id
             if int(th_id) == int(s_topic_id) and s_msg.media:
-                s_size = getattr(getattr(s_msg, s_msg.media.value, None), "file_size", None)
-                if s_size and s_size not in target_files:
-                    temp = await app.send_message(user_id, f"🔄 ફાઇલ સિંક થઈ રહી છે `{s_msg.id}`...")
-                    fake_link = f'https://t.me/c/{str(s_chat_id).replace("-100", "")}/{s_msg.id}'
-                    try:
-                        await get_msg(userbot, user_id, temp.id, fake_link, 0, message)
-                        synced += 1
-                        target_files.add(s_size)
-                    except Exception:
-                        pass
-                    finally:
-                        try:
-                            await temp.delete()
-                        except Exception:
-                            pass
-                    await asyncio.sleep(2)
+                media_obj = getattr(s_msg, s_msg.media.value, None)
+                if media_obj:
+                    f_id = getattr(media_obj, "file_unique_id", None) or getattr(media_obj, "file_size", None)
+                    if str(f_id) not in target_file_ids:
+                        missing_msgs.append(s_msg)
+
+        missing_msgs.reverse()
+
+        if not missing_msgs:
+            return await status.edit("✅ બધી ફાઈલો પહેલેથી સિંક છે. કોઈ ફાઈલ બાકી નથી.")
+
+        synced = 0
+        for s_msg in missing_msgs:
+            if mirror_cancel_flags.get(user_id, False):
+                break
+
+            temp = await app.send_message(user_id, f"🔄 પ્રોસેસિંગ બાકી વિડિયો `{s_msg.id}`...")
+            uploaded = False
+
+            try:
+                await userbot.copy_message(
+                    chat_id=t_chat_id,
+                    from_chat_id=s_chat_id,
+                    message_id=s_msg.id,
+                    message_thread_id=t_topic_id
+                )
+                uploaded = True
+                synced += 1
+            except Exception:
+                pass
+
+            if not uploaded:
+                fake_link = f'https://t.me/c/{str(s_chat_id).replace("-100", "")}/{s_msg.id}'
+                try:
+                    await get_msg(userbot, user_id, temp.id, fake_link, 0, message)
+                    synced += 1
+                except FloodWait as e:
+                    await asyncio.sleep(e.value + 1)
+                except Exception:
+                    pass
+
+            try:
+                await temp.delete()
+            except Exception:
+                pass
+            await asyncio.sleep(2)
 
         await status.edit(f"🎉 **સિંકિંગ પૂરું થયું!**\n✅ બાકી ફાઈલો ટ્રાન્સફર થઈ: `{synced}`")
     finally:
@@ -435,6 +465,7 @@ async def sync_mirror_missing(client, message):
             await userbot.stop()
         except Exception:
             pass
+            
 
 # ૫. /cancel_mirror - ચાલુ મિરરિંગ રોકવા માટે
 @app.on_message(filters.command(["cancel_mirror", "stopmirror"]) & filters.private)
