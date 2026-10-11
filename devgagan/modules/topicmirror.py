@@ -12,40 +12,90 @@ BOT_OWNER_ID = 8326187435
 
 user_mirror_data = {}
 mirror_cancel_flags = {}
-authorized_mirror_users = set()
+# user_id: expiry_timestamp (0 એટલે લાઈફટાઈમ)
+authorized_mirror_users = {}
+
+def parse_duration(time_str: str) -> int:
+    unit = time_str[-1].lower()
+    val = int(time_str[:-1])
+    if unit == 's':
+        return val
+    elif unit == 'm':
+        return val * 60
+    elif unit == 'h':
+        return val * 3600
+    elif unit == 'd':
+        return val * 86400
+    elif unit == 'y':
+        return val * 86400 * 365
+    return 0
 
 def is_authorized(user_id: int) -> bool:
     uid = int(user_id)
-    if uid == BOT_OWNER_ID or uid in authorized_mirror_users:
+    if uid == BOT_OWNER_ID:
         return True
+    if uid in authorized_mirror_users:
+        expiry = authorized_mirror_users[uid]
+        if expiry == 0 or time.time() < expiry:
+            return True
+        else:
+            authorized_mirror_users.pop(uid, None)
+            return False
     return False
 
 # ----------------- એક્સેસ કંટ્રોલ કમાન્ડ્સ -----------------
 
 @app.on_message(filters.command("addmirror") & filters.private)
 async def add_mirror_access(client, message):
-    if not is_authorized(message.chat.id):
-        return await message.reply_text("❌ આ કમાન્ડ વાપરવાની પરવાનગી માત્ર એડમિન પાસે છે.")
+    if message.chat.id != BOT_OWNER_ID:
+        return await message.reply_text("❌ આ કમાન્ડ માત્ર બોટ ઓનર વાપરી શકે છે.")
+    
     args = message.text.strip().split()
     if len(args) < 2 or not args[1].isdigit():
-        return await message.reply_text("⚠️ સાચો કમાન્ડ વાપરો: `/addmirror <user_id>`")
+        return await message.reply_text(
+            "⚠️ **વાપરવાની રીત:**\n"
+            "`/addmirror <user_id> <time>`\n\n"
+            "**ઉદાહરણ:**\n"
+            "• ૧ કલાક: `/addmirror 123456789 1h`\n"
+            "• ૧ દિવસ: `/addmirror 123456789 1d`\n"
+            "• ૨ દિવસ: `/addmirror 123456789 2d`\n"
+            "• ૧ વર્ષ: `/addmirror 123456789 1y`\n"
+            "• કાયમી: `/addmirror 123456789`"
+        )
+    
     uid = int(args[1])
-    authorized_mirror_users.add(uid)
-    await message.reply_text(f"✅ યુઝર `{uid}` ને મિરર એક્સેસ આપી દીધો છે.")
+    duration_str = args[2] if len(args) >= 3 else None
+
+    if duration_str:
+        try:
+            seconds = parse_duration(duration_str)
+            if seconds <= 0:
+                return await message.reply_text("❌ ખોટો સમય ફોર્મેટ! (ઉદાહરણ: 1h, 2d, 1y વાપરો)")
+            expiry_time = time.time() + seconds
+            authorized_mirror_users[uid] = expiry_time
+            await message.reply_text(f"✅ યુઝર `{uid}` ને `{duration_str}` માટે મિરર એક્સેસ આપવામાં આવ્યો છે.")
+        except Exception:
+            return await message.reply_text("❌ સમય ગણતરીમાં ભૂલ થઈ. સાચો ફોર્મેટ લખો (દા.ત. 1d, 2d, 1h).")
+    else:
+        authorized_mirror_users[uid] = 0
+        await message.reply_text(f"✅ યુઝર `{uid}` ને કાયમી (Lifetime) મિરર એક્સેસ આપવામાં આવ્યો છે.")
 
 @app.on_message(filters.command("delmirror") & filters.private)
 async def del_mirror_access(client, message):
-    if not is_authorized(message.chat.id):
-        return await message.reply_text("❌ આ કમાન્ડ વાપરવાની પરવાનગી માત્ર એડમિન પાસે છે.")
+    if message.chat.id != BOT_OWNER_ID:
+        return await message.reply_text("❌ આ કમાન્ડ માત્ર બોટ ઓનર વાપરી શકે છે.")
+    
     args = message.text.strip().split()
     if len(args) < 2 or not args[1].isdigit():
         return await message.reply_text("⚠️ સાચો કમાન્ડ વાપરો: `/delmirror <user_id>`")
+    
     uid = int(args[1])
     if uid in authorized_mirror_users:
-        authorized_mirror_users.remove(uid)
+        authorized_mirror_users.pop(uid, None)
         await message.reply_text(f"🚫 યુઝર `{uid}` પાસેથી મિરર એક્સેસ હટાવી દીધો છે.")
     else:
         await message.reply_text("⚠️ આ યુઝર પાસે પહેલેથી એક્સેસ નથી.")
+        
 
 # ----------------- હેલ્પર ફંક્શન્સ -----------------
 
