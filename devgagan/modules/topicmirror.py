@@ -797,9 +797,14 @@ async def sync_entire_group(client, message):
 
                     total_synced_files += topic_new_count
 
-                    # ચોક્કસ ટોપિકમાં કમ્પલીટ મેસેજ
-                    topic_done_msg = (
-                        "✅ 𝗖ꪮ𝗺𝗽𝗹𝗲𝘁𝗲 𝗛ꪮ 𝗚𝗮𝘆𝗮 𝗕ꪮ$$ 😎\n\n"                         f"📁 Topic: {t_name.title()}\n"                         f"📥 New Files Downloaded: {topic_new_count} files\n"                         f"⏩ Already Up-to-date: {len(t_files)} files"                     )                     try:                         await app.send_message(chat_id=t_chat_id, text=topic_done_msg, message_thread_id=t_topic_id)                     except Exception:                         pass          # ૪. આખા ગ્રૂપનો સમય અને જનરલ ચેટ મેસેજ         elapsed = time.time() - start_time         mins = int(elapsed // 60)         secs = int(elapsed \% 60)         time_taken_str = f"{mins}m, {secs}s"          general_complete_msg = (             "✅ 𝗖ꪮ𝗺𝗽𝗹𝗲𝘁𝗲 𝗛ꪮ 𝗚𝗮𝘆𝗮 𝗕ꪮ$$ 😎\n\n"
+                            # સમયની ગણતરી
+        elapsed = time.time() - start_time
+        mins = int(elapsed // 60)
+        secs = int(elapsed % 60)
+        time_taken_str = f"{mins}m, {secs}s"
+
+        general_complete_msg = (
+            "✅ 𝗖ꪮ𝗺𝗽𝗹𝗲𝘁𝗲 𝗛ꪮ 𝗚𝗮𝘆𝗮 𝗕ꪮ$$ 😎\n\n"
             f"📁 New Files Downloaded & Synced: {total_synced_files} files\n"
             f"⏩ Already Up-to-date: {total_already_files} files\n"
             f"⏱ Time Taken: {time_taken_str}"
@@ -815,14 +820,4 @@ async def sync_entire_group(client, message):
                 pass
 
         await status.edit(f"🎉 **આખા ગ્રૂપનું સિંકિંગ સફળતાપૂર્વક પૂરું થયું!**\n\n{general_complete_msg}")
-
-    except Exception as e:
-        await status.edit(f"❌ એરર આવી: `{e}`")
-    finally:
-        mirror_cancel_flags.pop(user_id, None)
-        user_chat_ids.pop(user_id, None)
-        try:
-            await userbot.stop()
-        except Exception:
-            pass
-            
+        
