@@ -797,7 +797,7 @@ async def sync_entire_group(client, message):
 
                     total_synced_files += topic_new_count
 
-                            # સમયની ગણતરી
+                                    # સમયની ગણતરી
         elapsed = time.time() - start_time
         mins = int(elapsed // 60)
         secs = int(elapsed % 60)
@@ -820,4 +820,14 @@ async def sync_entire_group(client, message):
                 pass
 
         await status.edit(f"🎉 **આખા ગ્રૂપનું સિંકિંગ સફળતાપૂર્વક પૂરું થયું!**\n\n{general_complete_msg}")
-        
+
+    except Exception as e:
+        await status.edit(f"❌ એરર આવી: `{e}`")
+    finally:
+        mirror_cancel_flags.pop(user_id, None)
+        user_chat_ids.pop(user_id, None)
+        try:
+            await userbot.stop()
+        except Exception:
+            pass
+            
