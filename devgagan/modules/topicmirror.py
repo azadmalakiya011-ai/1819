@@ -369,55 +369,81 @@ async def topic_link_direct(client, message):
             pass
             
 
-# ૩. /scan_mirror - બંને ટોપિકમાં ફાઇલો સરખાવવી
+# 3. /scan_mirror - Perfect Scan ane Comparison
 @app.on_message(filters.command("scan_mirror") & filters.private)
 async def scan_mirror_compare(client, message):
     user_id = message.chat.id
     if not is_authorized(user_id):
-        return await message.reply_text("❌ તમારી પાસે આ કમાન્ડ વાપરવાનો એક્સેસ નથી.")
+        return await message.reply_text("❌ Tamari pase aa command vaparvano access nathi.")
 
     try:
-        ask = await app.ask(user_id, "🔗 સોર્સ ટોપિકની લિંક મોકલો:")
+        ask = await app.ask(user_id, "🔗 Source topic ni link moklo:")
         s_link = ask.text.strip()
         s_chat_id, s_topic_id, _ = parse_tg_link(s_link)
 
-        ask = await app.ask(user_id, "🔗 ટાર્ગેટ ટોપિકની લિંક મોકલો:")
+        ask = await app.ask(user_id, "🔗 Target topic ni link moklo:")
         t_link = ask.text.strip()
         t_chat_id, t_topic_id, _ = parse_tg_link(t_link)
     except Exception as e:
-        return await app.send_message(user_id, f"❌ ભૂલ થઈ: `{e}`")
+        return await app.send_message(user_id, f"❌ Link vanchvama bhul thai: `{e}`")
 
-    status = await app.send_message(user_id, "🔍 મેસેજ અને મીડિયા ગણાઈ રહ્યા છે...")
+    status = await app.send_message(user_id, "🔍 Banne topic scan thai rahya chhe...")
     userbot = await initialize_userbot(user_id)
     if not userbot:
-        return await status.edit("❌ યુઝરબોટ ચાલુ નથી.")
+        return await status.edit("❌ Userbot chalu nathi. Pahela `/login` karo.")
 
     try:
-        s_count = 0
-        async for msg in userbot.get_chat_history(s_chat_id, limit=300):
-            th_id = getattr(msg, "message_thread_id", None) or s_topic_id
-            if int(th_id) == int(s_topic_id) and msg.media:
-                s_count += 1
-
+        # Target topic scan karvo
+        target_files = set()
         t_count = 0
-        async for msg in userbot.get_chat_history(t_chat_id, limit=300):
-            th_id = getattr(msg, "message_thread_id", None) or t_topic_id
-            if int(th_id) == int(t_topic_id) and msg.media:
-                t_count += 1
+        async for t_msg in userbot.get_chat_history(t_chat_id, limit=2000):
+            if not t_msg or getattr(t_msg, "empty", False) or getattr(t_msg, "service", False):
+                continue
+            
+            th_id = getattr(t_msg, "message_thread_id", None)
+            if (th_id and int(th_id) == int(t_topic_id)) or (not th_id and int(t_topic_id) == 1):
+                if t_msg.media:
+                    t_count += 1
+                    media_obj = getattr(t_msg, t_msg.media.value, None)
+                    if media_obj:
+                        f_id = getattr(media_obj, "file_unique_id", None) or getattr(media_obj, "file_size", None)
+                        if f_id:
+                            target_files.add(str(f_id))
 
-        diff = max(0, s_count - t_count)
-        await status.edit(
+        # Source topic scan karvo
+        s_count = 0
+        missing_count = 0
+        async for s_msg in userbot.get_chat_history(s_chat_id, limit=2000):
+            if not s_msg or getattr(s_msg, "empty", False) or getattr(s_msg, "service", False):
+                continue
+
+            th_id = getattr(s_msg, "message_thread_id", None)
+            if (th_id and int(th_id) == int(s_topic_id)) or (not th_id and int(s_topic_id) == 1):
+                if s_msg.media:
+                    s_count += 1
+                    media_obj = getattr(s_msg, s_msg.media.value, None)
+                    if media_obj:
+                        f_id = getattr(media_obj, "file_unique_id", None) or getattr(media_obj, "file_size", None)
+                        if str(f_id) not in target_files:
+                            missing_count += 1
+
+        res_text = (
             "📊 **સ્કેન અને સરખામણીનું પરિણામ:**\n\n"
             f"📁 જૂના ટોપિકમાં મીડિયા: `{s_count}`\n"
             f"📁 નવા ટોપિકમાં મીડિયા: `{t_count}`\n"
-            f"⚠️ બાકી રહેલી ફાઈલો: `{diff}`\n\n"
+            f"⚠️ બાકી રહેલી ફાઈલો: `{missing_count}`\n\n"
             "બાકી રહેલી ફાઈલો મોકલવા માટે `/sync_mirror` ચલાવો."
         )
+        await status.edit(res_text)
+
+    except Exception as e:
+        await status.edit(f"❌ Scan karti vakhate bhul thai: `{e}`")
     finally:
         try:
             await userbot.stop()
         except Exception:
             pass
+            
 
 # ૪. /sync_mirror - બાકી રહેલી ફાઇલો સિંક કરવી
 @app.on_message(filters.command("sync_mirror") & filters.private)
