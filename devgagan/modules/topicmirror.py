@@ -803,12 +803,8 @@ async def sync_entire_group(client, message):
         secs = int(elapsed % 60)
         time_taken_str = f"{mins}m, {secs}s"
 
-        general_complete_msg = (
-            "✅ 𝗖ꪮ𝗺𝗽𝗹𝗲𝘁𝗲 𝗛ꪮ 𝗚𝗮𝘆𝗮 𝗕ꪮ$$ 😎\n\n"
-            f"📁 New Files Downloaded & Synced: {total_synced_files} files\n"
-            f"⏩ Already Up-to-date: {total_already_files} files\n"
-            f"⏱ Time Taken: {time_taken_str}"
-        )
+        general_complete_msg = f"✅ Complete Ho Gaya Boss 😎\n\n📁 New Files Downloaded & Synced: {total_synced_files} files\n⏩ Already Up-to-date: {total_already_files} files\n⏱ Time Taken: {time_taken_str}"
+    
 
         # General Chat માં મોકલવું
         try:
