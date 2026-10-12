@@ -495,7 +495,7 @@ async def sync_mirror_missing(client, message):
                 except Exception:
                     pass
 
-                        try:
+          try:
                 await temp.delete()
             except Exception:
                 pass
@@ -503,13 +503,12 @@ async def sync_mirror_missing(client, message):
 
         elapsed = time.time() - start_time
         mins, secs = int(elapsed // 60), int(elapsed % 60)
+        done_msg = f"✅ Complete Ho Gaya Boss 😎\n\n📁 નવી સિંક થયેલી ફાઇલો: {synced}\n⏩ પહેલેથી હાજર ફાઇલો: {len(target_file_ids)}\n⏱ સમય લાગ્યો: {mins}m, {secs}s ⚡"
+        await status.edit(done_msg)
+    finally:
+        mirror_cancel_flags.pop(user_id, None)
+        user_chat_ids.pop(user_id, None)
 
-        done_msg = (
-            "✅ 𝗖ꪮ𝗺𝗽𝗹𝗲𝘁𝗲 𝗛ꪮ 𝗚𝗮𝘆𝗮 𝗕ꪮ$$ 😎\n\n"
-            f"📁 **નવી સિંક થયેલી ફાઇલો:** `{synced}`\n"
-            f"⏩ **પહેલેથી હાજર ફાઇલો:** `{len(target_file_ids)}`\n"
-            f"⏱ **સમય લાગ્યો:** `{mins}m, {secs}s` ⚡"
-        )
         await status.edit(done_msg)
     finally:
         mirror_cancel_flags.pop(user_id, None)
