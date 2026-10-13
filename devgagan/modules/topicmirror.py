@@ -667,9 +667,19 @@ async def fast_mirror_handler(client, message):
 
     total_synced_all = 0
     try:
-        # બંને ગ્રુપના એન્ટિટી (Entity) પહેલેથી જ મેળવી લો
-        src_entity = await sex.get_input_entity(s_chat_id)
-        tgt_entity = await sex.get_input_entity(t_chat_id)
+                # બંને ગ્રુપના એન્ટિટી (Entity) મેળવો
+        try:
+            src_entity = await sex.get_entity(s_chat_id)
+        except Exception:
+            await sex.get_dialogs(limit=100)
+            src_entity = await sex.get_entity(s_chat_id)
+
+        try:
+            tgt_entity = await sex.get_entity(t_chat_id)
+        except Exception:
+            await sex.get_dialogs(limit=100)
+            tgt_entity = await sex.get_entity(t_chat_id)
+            
 
         topic_items = sorted(mapped.items())
         for idx, (s_topic, t_topic) in enumerate(topic_items, 1):
