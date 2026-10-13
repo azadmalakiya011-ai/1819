@@ -185,7 +185,7 @@ async def topic_mirror_full(client, message):
                     offset_topic = getattr(last_t, "id", 0)
                     offset_date = getattr(last_t, "date", 0)
                     offset_id = getattr(last_t, "top_message", 0)
-                    await asyncio.sleep(0.3)
+                    await asyncio.sleep(1)
             except Exception:
                 pass
 
@@ -243,7 +243,7 @@ async def topic_mirror_full(client, message):
                     await progress_msg.edit("> " + "\n".join(summary_lines)[:4000])
                 except Exception:
                     pass
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(2)
 
         user_mirror_data[user_id] = {
             "source_chat_id": source_chat_id,
