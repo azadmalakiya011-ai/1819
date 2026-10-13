@@ -637,9 +637,9 @@ async def mirror_all_topics_handler(client, message):
         mirror_cancel_flags.pop(user_id, None)
         user_chat_ids.pop(user_id, None)
         
-        
+
 # ---------------------------------------------------------
-# ૭. /fast_mirror - ફોરવર્ડિંગ ON હોય તેવી પબ્લિક/પ્રાઇવેટ ચેનલ માટે સુપર ફાસ્ટ મિરર
+# ૭. /fast_mirror - સુધારેલો ડાયરેક્ટ કોપી/ફોરવર્ડ મિરર કોડ
 # ---------------------------------------------------------
 @app.on_message(filters.command("fast_mirror") & filters.private)
 async def fast_mirror_handler(client, message):
@@ -657,7 +657,7 @@ async def fast_mirror_handler(client, message):
     mapped = {int(k): int(v) for k, v in data["mapped_topics"].items() if v}
 
     mirror_cancel_flags[user_id] = False
-    status = await app.send_message(user_id, f"⚡ **સુપર ફાસ્ટ મિરરિંગ (Direct Copy) શરૂ થઈ રહ્યું છે...**\nકુલ ટોપિક્સ: `{len(mapped)}`")
+    status = await app.send_message(user_id, f"⚡ **ડાયરેક્ટ ટ્રાન્સફર શરૂ થઈ રહ્યું છે...**\nકુલ ટોપિક્સ: `{len(mapped)}`")
 
     userbot = await initialize_userbot(user_id)
     if not userbot:
@@ -671,21 +671,42 @@ async def fast_mirror_handler(client, message):
                 await app.send_message(user_id, "🛑 મિરરિંગ રોકી દેવામાં આવ્યું છે.")
                 break
 
-            await status.edit(f"⏳ **પ્રગતિ:** ટોપિક `{idx}/{len(mapped)}` માંથી ડાયરેક્ટ કોપી થઈ રહ્યું છે...")
+            await status.edit(f"⏳ **ટોપિક {idx}/{len(mapped)}** (ID: `{s_topic}` -> `{t_topic}`) પ્રોસેસ થઈ રહ્યો છે...")
 
             topic_video_count = 0
             src_messages = []
-            async for msg in userbot.get_chat_history(s_chat_id, limit=1000):
-                th_id = getattr(msg, "message_thread_id", None) or s_topic
-                if int(th_id) == int(s_topic) and msg.media:
-                    src_messages.append(msg)
 
+            # ૧. સીધા ફોરમ ટોપિકના મેસેજ ફેચ કરો
+            try:
+                async for msg in userbot.get_chat_history(s_chat_id, limit=300, reply_to_message_id=int(s_topic)):
+                    if msg.media:
+                        src_messages.append(msg)
+            except Exception:
+                pass
+
+            # ૨. જો ઉપરની રીતે ન મળે, તો સામાન્ય હિસ્ટ્રીમાંથી ફિલ્ટર કરો
+            if not src_messages:
+                try:
+                    async for msg in userbot.get_chat_history(s_chat_id, limit=300):
+                        th_id = (
+                            getattr(msg, "message_thread_id", None)
+                            or (msg.reply_to_message.message_thread_id if msg.reply_to_message else None)
+                            or (msg.reply_to_message_id if getattr(msg, "is_topic_message", False) else None)
+                        )
+                        if (th_id and int(th_id) == int(s_topic)) or int(s_topic) == 1:
+                            if msg.media:
+                                src_messages.append(msg)
+                except Exception:
+                    pass
+
+            # જૂનાથી નવા ક્રમમાં ગોઠવો
             src_messages.reverse()
 
             for msg in src_messages:
                 if mirror_cancel_flags.get(user_id, False):
                     break
 
+                # પહેલા copy_message અજમાવશે
                 try:
                     await userbot.copy_message(
                         chat_id=t_chat_id,
@@ -695,15 +716,27 @@ async def fast_mirror_handler(client, message):
                     )
                     total_synced_all += 1
                     topic_video_count += 1
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(1.5)
                 except Exception:
-                    pass
+                    # કોપી ન થાય તો forward_messages અજમાવશે
+                    try:
+                        await userbot.forward_messages(
+                            chat_id=t_chat_id,
+                            from_chat_id=s_chat_id,
+                            message_ids=msg.id,
+                            message_thread_id=t_topic
+                        )
+                        total_synced_all += 1
+                        topic_video_count += 1
+                        await asyncio.sleep(1.5)
+                    except Exception:
+                        pass
 
             if not mirror_cancel_flags.get(user_id, False):
                 try:
                     topic_done_msg = (
                         "✅ 𝗖ꪮ𝗺𝗽𝗹𝗲𝘁𝗲 𝗛ꪮ 𝗚𝗮𝘆𝗮 𝗕ꪮ$$ 😎\n\n"
-                        f"📁 **આ ટોપિક સફળતાપૂર્વક અપલોડ થઈ ગયો છે.**\n"
+                        f"📁 **આ ટોપિક અપલોડ થઈ ગયો છે.**\n"
                         f"📥 નવી ફાઇલો: `{topic_video_count}`"
                     )
                     await app.send_message(
@@ -714,14 +747,17 @@ async def fast_mirror_handler(client, message):
                 except Exception:
                     pass
 
+            # બે ટોપિક વચ્ચે થોડો વિરામ જેથી ટેલિગ્રામ Flood Wait ન આપે
+            await asyncio.sleep(2)
+
         elapsed = time.time() - start_time
         mins, secs = int(elapsed // 60), int(elapsed % 60)
         await status.edit(
-            f"✅ **બધા વિડિયો સીધા કોપી થઈ ગયા!** 🎉\n\n"
-            f"📁 કુલ ફાઇલો: `{total_synced_all}`\n"
+            f"✅ **મિરરિંગ પૂરું થયું!** 🎉\n\n"
+            f"📁 કુલ નવી ફાઇલો: `{total_synced_all}`\n"
             f"⏱ સમય: `{mins}m, {secs}s` ⚡"
         )
     finally:
         mirror_cancel_flags.pop(user_id, None)
         user_chat_ids.pop(user_id, None)
-        
+                                                 
