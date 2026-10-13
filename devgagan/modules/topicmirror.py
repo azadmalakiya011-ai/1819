@@ -636,10 +636,10 @@ async def mirror_all_topics_handler(client, message):
     finally:
         mirror_cancel_flags.pop(user_id, None)
         user_chat_ids.pop(user_id, None)
-        
+
 
 # ---------------------------------------------------------
-# ૭. /fast_mirror - સુધારેલો અને ભૂલ-મુક્ત ફાસ્ટ મિરર હેન્ડલર
+# ૭. /fast_mirror - get_func.py ની સિસ્ટમ આધારિત હાઈ-સ્પીડ મિરર
 # ---------------------------------------------------------
 @app.on_message(filters.command("fast_mirror") & filters.private)
 async def fast_mirror_handler(client, message):
@@ -659,20 +659,20 @@ async def fast_mirror_handler(client, message):
     mirror_cancel_flags[user_id] = False
     status = await app.send_message(
         user_id, 
-        f"⚡ **મિરરિંગ શરૂ થઈ રહ્યું છે...**\nકુલ ટોપિક્સ: `{len(mapped)}`"
+        f"⚡ **હાઈ-સ્પીડ ડાયરેક્ટ ટ્રાન્સફર શરૂ થઈ રહ્યું છે...**\nકુલ ટોપિક્સ: `{len(mapped)}`"
     )
 
     userbot = await initialize_userbot(user_id)
     if not userbot:
         return await status.edit("❌ યુઝરબોટ ચાલુ નથી. પહેલા `/login` કરો.")
 
-    # ચેનલ બંને ક્લાયન્ટમાં કેશ (Cache) કરી લો
+    # બંને ચેટને એકવાર કેશ (Cache) કરી લો
     try:
         await userbot.get_chat(s_chat_id)
     except Exception:
         pass
     try:
-        await userbot.get_chat(t_chat_id)
+        await app.get_chat(t_chat_id)
     except Exception:
         pass
 
@@ -684,12 +684,12 @@ async def fast_mirror_handler(client, message):
                 await app.send_message(user_id, "🛑 મિરરિંગ રોકી દેવામાં આવ્યું છે.")
                 break
 
-            await status.edit(f"⏳ **ટોપિક {idx}/{len(mapped)}** (ID: `{s_topic}` -> `{t_topic}`) ના મેસેજ સ્કેન થઈ રહ્યા છે...")
+            await status.edit(f"⏳ **ટોપિક {idx}/{len(mapped)}** (ID: `{s_topic}` -> `{t_topic}`) ના મેસેજ પ્રોસેસ થઈ રહ્યા છે...")
 
             topic_video_count = 0
-            msg_ids = []
+            messages_list = []
 
-            # ૧. Userbot દ્વારા હિસ્ટ્રીમાંથી ચોક્કસ ટોપિકના મેસેજ ID શોધો
+            # Userbot દ્વારા હિસ્ટ્રીમાંથી ચોક્કસ ટોપિકના મેસેજ લો
             try:
                 async for p_msg in userbot.get_chat_history(s_chat_id, limit=300):
                     if not p_msg or getattr(p_msg, "empty", False):
@@ -702,68 +702,97 @@ async def fast_mirror_handler(client, message):
                     )
                     
                     if (th_id and int(th_id) == int(s_topic)) or int(s_topic) == 1:
-                        if p_msg.media:
-                            msg_ids.append(p_msg.id)
+                        if p_msg.media or p_msg.text:
+                            messages_list.append(p_msg)
             except Exception:
                 pass
 
-            # જૂનાથી નવા ક્રમમાં લાવો
-            msg_ids.reverse()
+            # જૂનાથી નવા ક્રમમાં ગોઠવો
+            messages_list.reverse()
 
-            # ૨. મેસેજ મોકલો (કોપી / ફોરવર્ડ)
-            for m_id in msg_ids:
+            for msg in messages_list:
                 if mirror_cancel_flags.get(user_id, False):
                     break
 
                 sent = False
-                # પહેલા ડાયરેક્ટ કોપી
-                try:
-                    await userbot.copy_message(
-                        chat_id=t_chat_id,
-                        from_chat_id=s_chat_id,
-                        message_id=m_id,
-                        message_thread_id=int(t_topic)
-                    )
-                    sent = True
-                except FloodWait as fw:
-                    await asyncio.sleep(fw.value + 1)
+                caption = msg.caption.markdown if msg.caption else None
+
+                # ૧. જો વીડિયો હોય તો send_video (file_id) - Zero Download
+                if msg.video and getattr(msg.video, "file_id", None):
                     try:
-                        await userbot.copy_message(
+                        await app.send_video(
                             chat_id=t_chat_id,
-                            from_chat_id=s_chat_id,
-                            message_id=m_id,
-                            message_thread_id=int(t_topic)
+                            video=msg.video.file_id,
+                            caption=caption,
+                            duration=(msg.video.duration or 0),
+                            width=(msg.video.width or 1280),
+                            height=(msg.video.height or 720),
+                            supports_streaming=True,
+                            reply_to_message_id=int(t_topic)
                         )
                         sent = True
                     except Exception:
                         pass
-                except Exception:
-                    pass
 
-                # જો કોપી ન થાય તો ફોરવર્ડ કરવાનો પ્રયાસ
-                if not sent:
+                # ૨. જો ડોક્યુમેન્ટ હોય તો send_document (file_id)
+                elif msg.document and getattr(msg.document, "file_id", None):
                     try:
-                        await userbot.forward_messages(
+                        await app.send_document(
                             chat_id=t_chat_id,
-                            from_chat_id=s_chat_id,
-                            message_ids=m_id,
-                            message_thread_id=int(t_topic)
+                            document=msg.document.file_id,
+                            caption=caption,
+                            reply_to_message_id=int(t_topic)
                         )
                         sent = True
-                    except FloodWait as fw:
-                        await asyncio.sleep(fw.value + 1)
+                    except Exception:
+                        pass
+
+                # ૩. જો ફોટો હોય તો send_photo (file_id)
+                elif msg.photo and getattr(msg.photo, "file_id", None):
+                    try:
+                        await app.send_photo(
+                            chat_id=t_chat_id,
+                            photo=msg.photo.file_id,
+                            caption=caption,
+                            reply_to_message_id=int(t_topic)
+                        )
+                        sent = True
+                    except Exception:
+                        pass
+
+                # ૪. જો સામાન્ય લખાણ હોય તો send_message
+                elif msg.text:
+                    try:
+                        await app.send_message(
+                            chat_id=t_chat_id,
+                            text=msg.text.markdown,
+                            reply_to_message_id=int(t_topic)
+                        )
+                        sent = True
+                    except Exception:
+                        pass
+
+                # ૫. Fallback: સીધું copy_message
+                if not sent:
+                    try:
+                        await app.copy_message(
+                            chat_id=t_chat_id,
+                            from_chat_id=s_chat_id,
+                            message_id=msg.id,
+                            reply_to_message_id=int(t_topic)
+                        )
+                        sent = True
+                    except Exception:
                         try:
-                            await userbot.forward_messages(
+                            await userbot.copy_message(
                                 chat_id=t_chat_id,
                                 from_chat_id=s_chat_id,
-                                message_ids=m_id,
+                                message_id=msg.id,
                                 message_thread_id=int(t_topic)
                             )
                             sent = True
                         except Exception:
                             pass
-                    except Exception:
-                        pass
 
                 if sent:
                     total_synced_all += 1
@@ -786,7 +815,6 @@ async def fast_mirror_handler(client, message):
                 except Exception:
                     pass
 
-            # બે ટોપિક વચ્ચે ૨ સેકન્ડનો બ્રેક
             await asyncio.sleep(2)
 
         elapsed = time.time() - start_time
@@ -801,4 +829,4 @@ async def fast_mirror_handler(client, message):
     finally:
         mirror_cancel_flags.pop(user_id, None)
         user_chat_ids.pop(user_id, None)
-        
+                        
