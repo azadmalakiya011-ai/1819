@@ -639,7 +639,7 @@ async def mirror_all_topics_handler(client, message):
         
 
 # ---------------------------------------------------------
-# ૭. /fast_mirror - Telethon આધારિત સુધારેલો ફાસ્ટ મિરર હેન્ડલર
+# ૭. /fast_mirror - સુધારેલો અને ભૂલ-મુક્ત ફાસ્ટ મિરર હેન્ડલર
 # ---------------------------------------------------------
 @app.on_message(filters.command("fast_mirror") & filters.private)
 async def fast_mirror_handler(client, message):
@@ -651,9 +651,6 @@ async def fast_mirror_handler(client, message):
     if not data or "mapped_topics" not in data or not data["mapped_topics"]:
         return await message.reply_text("❌ પહેલા `/topicmirror` રન કરીને ટોપિક્સ મેપ કરી લો.")
 
-    if not sex or not sex.is_connected():
-        return await message.reply_text("❌ Telethon ક્લાયન્ટ કનેક્ટેડ નથી. કૃપા કરીને રીસ્ટાર્ટ કરો.")
-
     start_time = time.time()
     s_chat_id = data["source_chat_id"]
     t_chat_id = data["target_chat_id"]
@@ -662,87 +659,118 @@ async def fast_mirror_handler(client, message):
     mirror_cancel_flags[user_id] = False
     status = await app.send_message(
         user_id, 
-        f"⚡ **Telethon દ્વારા ડાયરેક્ટ ટ્રાન્સફર શરૂ થઈ રહ્યું છે...**\nકુલ ટોપિક્સ: `{len(mapped)}`"
+        f"⚡ **મિરરિંગ શરૂ થઈ રહ્યું છે...**\nકુલ ટોપિક્સ: `{len(mapped)}`"
     )
+
+    userbot = await initialize_userbot(user_id)
+    if not userbot:
+        return await status.edit("❌ યુઝરબોટ ચાલુ નથી. પહેલા `/login` કરો.")
+
+    # ચેનલ બંને ક્લાયન્ટમાં કેશ (Cache) કરી લો
+    try:
+        await userbot.get_chat(s_chat_id)
+    except Exception:
+        pass
+    try:
+        await userbot.get_chat(t_chat_id)
+    except Exception:
+        pass
 
     total_synced_all = 0
     try:
-                # બંને ગ્રુપના એન્ટિટી (Entity) મેળવો
-        try:
-            src_entity = await sex.get_entity(s_chat_id)
-        except Exception:
-            await sex.get_dialogs(limit=100)
-            src_entity = await sex.get_entity(s_chat_id)
-
-        try:
-            tgt_entity = await sex.get_entity(t_chat_id)
-        except Exception:
-            await sex.get_dialogs(limit=100)
-            tgt_entity = await sex.get_entity(t_chat_id)
-            
-
         topic_items = sorted(mapped.items())
         for idx, (s_topic, t_topic) in enumerate(topic_items, 1):
             if mirror_cancel_flags.get(user_id, False):
                 await app.send_message(user_id, "🛑 મિરરિંગ રોકી દેવામાં આવ્યું છે.")
                 break
 
-            await status.edit(f"⏳ **ટોપિક {idx}/{len(mapped)}** (ID: `{s_topic}` -> `{t_topic}`) ના મેસેજ આવી રહ્યા છે...")
+            await status.edit(f"⏳ **ટોપિક {idx}/{len(mapped)}** (ID: `{s_topic}` -> `{t_topic}`) ના મેસેજ સ્કેન થઈ રહ્યા છે...")
 
             topic_video_count = 0
-            messages_to_send = []
+            msg_ids = []
 
-            # ૧. Telethon દ્વારા ચોક્કસ ટોપિકના મેસેજ શોધો
+            # ૧. Userbot દ્વારા હિસ્ટ્રીમાંથી ચોક્કસ ટોપિકના મેસેજ ID શોધો
             try:
-                async for t_msg in sex.iter_messages(src_entity, reply_to=int(s_topic), limit=400):
-                    if t_msg.media:
-                        messages_to_send.append(t_msg)
+                async for p_msg in userbot.get_chat_history(s_chat_id, limit=300):
+                    if not p_msg or getattr(p_msg, "empty", False):
+                        continue
+                    
+                    th_id = (
+                        getattr(p_msg, "message_thread_id", None)
+                        or (p_msg.reply_to_message.message_thread_id if p_msg.reply_to_message else None)
+                        or (p_msg.reply_to_message_id if getattr(p_msg, "is_topic_message", False) else None)
+                    )
+                    
+                    if (th_id and int(th_id) == int(s_topic)) or int(s_topic) == 1:
+                        if p_msg.media:
+                            msg_ids.append(p_msg.id)
             except Exception:
                 pass
 
-            # ૨. જો ઉપરની રીતે ન મળે, તો સામાન્ય હિસ્ટ્રીમાંથી ફિલ્ટર કરો
-            if not messages_to_send:
-                try:
-                    async for t_msg in sex.iter_messages(src_entity, limit=400):
-                        th_id = getattr(t_msg, "reply_to_msg_id", None)
-                        if (th_id and int(th_id) == int(s_topic)) or int(s_topic) == 1:
-                            if t_msg.media:
-                                messages_to_send.append(t_msg)
-                except Exception:
-                    pass
+            # જૂનાથી નવા ક્રમમાં લાવો
+            msg_ids.reverse()
 
-            # જૂનાથી નવા ક્રમમાં ગોઠવો
-            messages_to_send.reverse()
-
-            for t_msg in messages_to_send:
+            # ૨. મેસેજ મોકલો (કોપી / ફોરવર્ડ)
+            for m_id in msg_ids:
                 if mirror_cancel_flags.get(user_id, False):
                     break
 
-                # પહેલા ડાયરેક્ટ મોકલવાનો (Copy/Send) પ્રયાસ કરશે
+                sent = False
+                # પહેલા ડાયરેક્ટ કોપી
                 try:
-                    await sex.send_message(
-                        tgt_entity,
-                        message=t_msg,
-                        reply_to=int(t_topic)
+                    await userbot.copy_message(
+                        chat_id=t_chat_id,
+                        from_chat_id=s_chat_id,
+                        message_id=m_id,
+                        message_thread_id=int(t_topic)
                     )
-                    total_synced_all += 1
-                    topic_video_count += 1
-                    await asyncio.sleep(1.5)
-                except Exception:
-                    # જો એ ન થાય તો સીધું ફોરવર્ડ કરશે
+                    sent = True
+                except FloodWait as fw:
+                    await asyncio.sleep(fw.value + 1)
                     try:
-                        await sex.forward_messages(
-                            tgt_entity,
-                            messages=t_msg.id,
-                            from_peer=src_entity,
-                            reply_to=int(t_topic)
+                        await userbot.copy_message(
+                            chat_id=t_chat_id,
+                            from_chat_id=s_chat_id,
+                            message_id=m_id,
+                            message_thread_id=int(t_topic)
                         )
-                        total_synced_all += 1
-                        topic_video_count += 1
-                        await asyncio.sleep(1.5)
+                        sent = True
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
+                # જો કોપી ન થાય તો ફોરવર્ડ કરવાનો પ્રયાસ
+                if not sent:
+                    try:
+                        await userbot.forward_messages(
+                            chat_id=t_chat_id,
+                            from_chat_id=s_chat_id,
+                            message_ids=m_id,
+                            message_thread_id=int(t_topic)
+                        )
+                        sent = True
+                    except FloodWait as fw:
+                        await asyncio.sleep(fw.value + 1)
+                        try:
+                            await userbot.forward_messages(
+                                chat_id=t_chat_id,
+                                from_chat_id=s_chat_id,
+                                message_ids=m_id,
+                                message_thread_id=int(t_topic)
+                            )
+                            sent = True
+                        except Exception:
+                            pass
                     except Exception:
                         pass
 
+                if sent:
+                    total_synced_all += 1
+                    topic_video_count += 1
+                    await asyncio.sleep(1.5)
+
+            # ટોપિક પૂર્ણ થયાનો મેસેજ
             if not mirror_cancel_flags.get(user_id, False):
                 try:
                     topic_done_msg = (
@@ -753,7 +781,7 @@ async def fast_mirror_handler(client, message):
                     await app.send_message(
                         chat_id=t_chat_id,
                         text=topic_done_msg,
-                        message_thread_id=t_topic
+                        message_thread_id=int(t_topic)
                     )
                 except Exception:
                     pass
@@ -768,6 +796,8 @@ async def fast_mirror_handler(client, message):
             f"📁 કુલ નવી ફાઇલો: `{total_synced_all}`\n"
             f"⏱ સમય: `{mins}m, {secs}s` ⚡"
         )
+    except Exception as e:
+        await status.edit(f"❌ **મિરરિંગમાં ભૂલ આવી:** `{e}`")
     finally:
         mirror_cancel_flags.pop(user_id, None)
         user_chat_ids.pop(user_id, None)
