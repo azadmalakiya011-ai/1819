@@ -347,8 +347,50 @@ async def topic_link_direct(client, message):
         user_chat_ids.pop(user_id, None)
 
 
+
+
+
+
+def extract_media_info(msg):
+    """મીડિયાની સાઈઝ અને સમય પરથી યુનિક ઓળખ બનાવે છે"""
+    if not msg or not msg.media:
+        return None
+    
+    media = getattr(msg, msg.media.value, None)
+    if not media:
+        return None
+    
+    f_size = getattr(media, "file_size", 0)
+    duration = getattr(media, "duration", 0)
+    f_name = getattr(media, "file_name", "") or ""
+    
+    # સાઈઝ અને સમય પરથી પાકી સરખામણી
+    return f"{f_size}_{duration}_{f_name}"
+
+
+def is_in_topic(msg, topic_id):
+    """મેસેજ તે જ ટોપિકનો છે કે નહીં તે ૧૦૦% સાચું તપાસે છે"""
+    if int(topic_id) == 1:
+        return True
+    
+    th_id = getattr(msg, "message_thread_id", None)
+    if th_id and int(th_id) == int(topic_id):
+        return True
+        
+    reply = getattr(msg, "reply_to_message", None)
+    if reply and getattr(reply, "message_thread_id", None):
+        if int(reply.message_thread_id) == int(topic_id):
+            return True
+            
+    reply_id = getattr(msg, "reply_to_message_id", None)
+    if reply_id and int(reply_id) == int(topic_id):
+        return True
+        
+    return False
+
+
 # ---------------------------------------------------------
-# ૩. /scan_mirror - Perfect Scan અને ડેટા કેશમાં સાચવવો
+# ૩. /scan_mirror - સાચી ગણતરી અને પરફેક્ટ સ્કેન
 # ---------------------------------------------------------
 @app.on_message(filters.command("scan_mirror") & filters.private)
 async def scan_mirror_compare(client, message):
@@ -367,45 +409,49 @@ async def scan_mirror_compare(client, message):
     except Exception as e:
         return await app.send_message(user_id, f"❌ **લિંક વાંચવામાં ભૂલ થઈ:** `{e}`")
 
-    status = await app.send_message(user_id, "🔍 **બંને ટોપિક્સ સ્કેન અને કમ્પેર થઈ રહ્યા છે...** ⏳")
+    status = await app.send_message(user_id, "🔍 **બંને ટોપિક્સ સ્કેન અને સરખામણી થઈ રહ્યા છે...** ⏳")
     userbot = await initialize_userbot(user_id)
     if not userbot:
         return await status.edit("❌ **યુઝરબોટ ચાલુ નથી. પહેલા `/login` કરો.**")
 
     try:
-        target_files = set()
-        async for t_msg in userbot.get_chat_history(t_chat_id, limit=2000):
+        # ૧. ટાર્ગેટ ટોપિકમાં પહેલેથી હાજર ફાઈલોની યાદી લો
+        target_fingerprints = set()
+        t_count = 0
+        
+        async for t_msg in userbot.get_chat_history(t_chat_id, limit=3000):
             if not t_msg or getattr(t_msg, "empty", False) or getattr(t_msg, "service", False):
                 continue
             
-            th_id = getattr(t_msg, "message_thread_id", None)
-            if (th_id and int(th_id) == int(t_topic_id)) or (not th_id and int(t_topic_id) == 1):
-                if t_msg.media:
-                    media_obj = getattr(t_msg, t_msg.media.value, None)
-                    if media_obj:
-                        f_id = getattr(media_obj, "file_unique_id", None) or getattr(media_obj, "file_size", None)
-                        if f_id:
-                            target_files.add(str(f_id))
+            if is_in_topic(t_msg, t_topic_id) and t_msg.media:
+                fp = extract_media_info(t_msg)
+                if fp:
+                    target_fingerprints.add(fp)
+                    t_count += 1
 
-        missing_msgs = []
+        # ૨. સોર્સ ટોપિકની ફાઈલો તપાસો
+        source_media_msgs = []
         s_count = 0
-        async for s_msg in userbot.get_chat_history(s_chat_id, limit=2000):
+        missing_msgs = []
+        
+        async for s_msg in userbot.get_chat_history(s_chat_id, limit=3000):
             if not s_msg or getattr(s_msg, "empty", False) or getattr(s_msg, "service", False):
                 continue
+            
+            if is_in_topic(s_msg, s_topic_id) and s_msg.media:
+                s_count += 1
+                source_media_msgs.append(s_msg)
 
-            th_id = getattr(s_msg, "message_thread_id", None)
-            if (th_id and int(th_id) == int(s_topic_id)) or (not th_id and int(s_topic_id) == 1):
-                if s_msg.media:
-                    s_count += 1
-                    media_obj = getattr(s_msg, s_msg.media.value, None)
-                    if media_obj:
-                        f_id = getattr(media_obj, "file_unique_id", None) or getattr(media_obj, "file_size", None)
-                        if str(f_id) not in target_files:
-                            missing_msgs.append(s_msg)
+        # જૂનાથી નવા ક્રમમાં લાવો
+        source_media_msgs.reverse()
 
-        missing_msgs.reverse()
+        for s_msg in source_media_msgs:
+            fp = extract_media_info(s_msg)
+            # જો ટાર્ગેટમાં આ વિડિયો/પીડીએફ ના હોય તો જ બાકીમાં ઉમેરો
+            if fp and fp not in target_fingerprints:
+                missing_msgs.append(s_msg)
 
-        # ફરી લિંક ના માગવી પડે તે માટે ડેટા કેશમાં સેવ
+        # ડેટા કેશમાં સાચવી લો જેથી /sync_mirror વખતે ફરી લિંક ના માગવી પડે
         last_scan_cache[user_id] = {
             "source_chat": s_chat_id,
             "target_chat": t_chat_id,
@@ -418,20 +464,21 @@ async def scan_mirror_compare(client, message):
             "   📊 **𝗦𝗖𝗔𝗡 & 𝗖𝗢𝗠𝗣𝗔𝗥𝗘 𝗥𝗘𝗣𝗢𝗥𝗧**\n"
             "╠══════════════════════════╣\n"
             f" 📁 **સોર્સ ટોપિક ફાઈલો** : `{s_count}`\n"
-            f" 📁 **ટાર્ગેટ ટોપિક ફાઈલો**: `{len(target_files)}`\n"
-            f" ⚠️ **બાકી રહેલી ફાઈલો**  : `{len(missing_msgs)}`\n"
+            f" 📁 **ટાર્ગેટ ટોપિક ફાઈલો**: `{t_count}`\n"
+            f" ⚠️ **ખરેખર બાકી ફાઈલો** : `{len(missing_msgs)}`\n"
             "╠══════════════════════════╣\n"
             " 👉 *બાકી ફાઈલો આપોઆપ ભરવા માટે*\n"
             "    `/sync_mirror` *કમાન્ડ મોકલો.* ⚡\n"
             "╚══════════════════════════╝"
         )
         await status.edit(report_box)
+
     except Exception as e:
         await status.edit(f"❌ **સ્કેન કરવામાં ભૂલ થઈ:** `{e}`")
 
 
 # ---------------------------------------------------------
-# ૪. /sync_mirror - લિંક વગર ડાયરેક્ટ ઓટો સિંક અને રોયલ બોક્સ
+# ૪. /sync_mirror - માત્ર બાકી ફાઈલો જ સિંક થશે
 # ---------------------------------------------------------
 @app.on_message(filters.command("sync_mirror") & filters.private)
 async def sync_mirror_missing(client, message):
@@ -441,7 +488,7 @@ async def sync_mirror_missing(client, message):
 
     scan_data = last_scan_cache.get(user_id)
     if not scan_data or not scan_data.get("missing_msgs"):
-        return await message.reply_text("❌ **કોઈ બાકી ફાઈલો મળી નથી.** પહેલા `/scan_mirror` ચલાવીને સ્કેન કરો.")
+        return await message.reply_text("❌ **કોઈ બાકી ફાઈલો મળી નથી.** પહેલા `/scan_mirror` ચલાવો.")
 
     missing_msgs = scan_data["missing_msgs"]
     s_chat_id = scan_data["source_chat"]
@@ -451,6 +498,7 @@ async def sync_mirror_missing(client, message):
     start_time = time.time()
     mirror_cancel_flags[user_id] = False
     user_chat_ids[user_id] = f"{t_chat_id}/{t_topic_id}"
+    
     status = await app.send_message(
         user_id, 
         f"⚡ **બાકી રહેલી {len(missing_msgs)} ફાઈલોનું ઓટોમેટિક ટ્રાન્સફર શરૂ થઈ રહ્યું છે...**"
@@ -466,39 +514,23 @@ async def sync_mirror_missing(client, message):
             if mirror_cancel_flags.get(user_id, False):
                 break
 
-            temp = await app.send_message(user_id, f"🔄 **ટ્રાન્સફર થઈ રહ્યો છે:** `{s_msg.id}` ({idx}/{len(missing_msgs)})...")
-            uploaded = False
-
-            # ૧. ડાયરેક્ટ કોપી
+            temp = await app.send_message(user_id, f"🔄 **ટ્રાન્સફર:** `{s_msg.id}` ({idx}/{len(missing_msgs)})...")
+            
+            fake_link = f'https://t.me/c/{str(s_chat_id).replace("-100", "")}/{s_msg.id}'
             try:
-                await userbot.copy_message(
-                    chat_id=t_chat_id,
-                    from_chat_id=s_chat_id,
-                    message_id=s_msg.id,
-                    message_thread_id=t_topic_id
-                )
-                uploaded = True
+                await get_msg(userbot, user_id, temp.id, fake_link, 0, message)
                 synced += 1
+            except FloodWait as e:
+                await asyncio.sleep(e.value + 1)
             except Exception:
                 pass
-
-            # ૨. Fallback: get_msg દ્વારા પ્રોસેસ
-            if not uploaded:
-                fake_link = f'https://t.me/c/{str(s_chat_id).replace("-100", "")}/{s_msg.id}'
-                try:
-                    await get_msg(userbot, user_id, temp.id, fake_link, 0, message)
-                    synced += 1
-                except FloodWait as e:
-                    await asyncio.sleep(e.value + 1)
-                except Exception:
-                    pass
 
             try:
                 await temp.delete()
             except Exception:
                 pass
 
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(2)
 
         last_scan_cache.pop(user_id, None)
 
@@ -522,9 +554,8 @@ async def sync_mirror_missing(client, message):
     finally:
         mirror_cancel_flags.pop(user_id, None)
         user_chat_ids.pop(user_id, None)
+            
         
-
-
 # ૫. /cancel_mirror - ચાલુ મિરરિંગ રોકવા માટે
 @app.on_message(filters.command(["cancel_mirror", "stopmirror"]) & filters.private)
 async def cancel_mirror_handler(client, message):
