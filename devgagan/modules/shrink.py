@@ -154,7 +154,7 @@ async def token_handler(client, message):
     user_id = message.chat.id
 
     if len(message.command) <= 1:
-        image_url = "https://ibb.co/bMfJtqHm"
+        image_url = "https://kommodo.ai/i/mJTV1YHxzGyxzgFyOC8B"
         join_button = InlineKeyboardButton("✈️ Main Channel", url="https://t.me/SRC_PRO")
         premium = InlineKeyboardButton("🦋 Contact Owner", url="https://t.me/TEAM_AxxxS_BOT")
         keyboard = InlineKeyboardMarkup([
