@@ -96,6 +96,9 @@ async def del_mirror_access(client, message):
     else:
         await message.reply_text("⚠️ **આ યુઝર પાસે પહેલેથી એક્સેસ નથી.**")
 
+last_scan_cache = {}
+
+
 
 # ----------------- 🛠️ હેલ્પર ફંક્શન્સ -----------------
 
