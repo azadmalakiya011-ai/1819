@@ -640,7 +640,7 @@ async def send_media_message(app, target_chat_id, msg, caption, topic_id):
             # If caption exists → keep it same, just replace links if needed
             caption = re.sub(
                 r'https?://t\.me/[^\s]+|https?://telegram\.me/[^\s]+',
-                'https://t.me/SRC_PRO',
+                '[╰‿╯ ҡσℓเ ⚝](https://t.me/+2VtPCOgf0vJlMzFl)',
                 caption
             )
         elif file_name:
@@ -648,7 +648,7 @@ async def send_media_message(app, target_chat_id, msg, caption, topic_id):
             caption = f"🗃 {file_name}"
         else:
             # If nothing → fallback
-            caption = "╰‿╯ ҡσℓเ ⚝"
+            caption = [╰‿╯ ҡσℓเ ⚝](https://t.me/+2VtPCOgf0vJlMzFl)
 
         # Send the message with the right method
         if msg.video:
@@ -717,12 +717,12 @@ def format_caption(original_caption, sender, custom_caption):
     original_caption = re.sub(r'#\S+', '', original_caption)
 
     # ✅ Replace @mentions
-    original_caption = re.sub(r'@\w+', '╰‿╯ ҡσℓเ ⚝', original_caption)
+    original_caption = re.sub(r'@\w+', '[╰‿╯ ҡσℓเ ⚝](https://t.me/+2VtPCOgf0vJlMzFl)', original_caption)
 
     # ✅ Replace telegram links
     original_caption = re.sub(
         r'https?://(t\.me|telegram\.me)/[^\s]+',
-        'https://t.me/SRC_PRO',
+        '[╰‿╯ ҡσℓเ ⚝](https://t.me/+2VtPCOgf0vJlMzFl)',
         original_caption
     )
 
@@ -933,7 +933,7 @@ async def callback_query_handler(event):
 
     elif event.data == b'telethon':
         save_user_upload_method(user_id, "Telethon")
-        await event.edit("Upload method set to **╰‿╯ ҡσℓเ ⚝ V2 ⚡ \n\n Use V1 V2 is just Testing purpose**")        
+        await event.edit("Upload method set to **[╰‿╯ ҡσℓเ ⚝](https://t.me/+2VtPCOgf0vJlMzFl)V2 ⚡ \n\n Use V1 V2 is just Testing purpose**")        
         
     elif event.data == b'reset':
         try:
