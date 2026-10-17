@@ -648,7 +648,7 @@ async def send_media_message(app, target_chat_id, msg, caption, topic_id):
             caption = f"🗃 {file_name}"
         else:
             # If nothing → fallback
-            caption = [╰‿╯ ҡσℓเ ⚝](https://t.me/+2VtPCOgf0vJlMzFl)
+            caption = "[╰‿╯ ҡσℓเ ⚝](https://t.me/+2VtPCOgf0vJlMzFl)"
 
         # Send the message with the right method
         if msg.video:
