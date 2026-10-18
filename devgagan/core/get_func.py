@@ -640,7 +640,7 @@ async def send_media_message(app, target_chat_id, msg, caption, topic_id):
             # If caption exists → keep it same, just replace links if needed
             caption = re.sub(
                 r'https?://t\.me/[^\s]+|https?://telegram\.me/[^\s]+',
-                '[╰‿╯ ҡσℓเ ⚝](https://t.me/+2VtPCOgf0vJlMzFl)',
+                r'[╰‿╯ ҡσℓเ ⚝](https://t.me/+2VtPCOgf0vJlMzFl)',
                 caption
             )
         elif file_name:
