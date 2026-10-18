@@ -660,7 +660,7 @@ async def send_media_message(app, target_chat_id, msg, caption, topic_id):
                 target_chat_id,
                 msg.document.file_id,
                 caption=caption,
-                parse_mode=enums.ParseMode.MARKDOWN,
+                parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=topic_id,
             )
 
@@ -669,7 +669,7 @@ async def send_media_message(app, target_chat_id, msg, caption, topic_id):
                 target_chat_id,
                 msg.photo.file_id,
                 caption=caption,
-                parse_mode=enums.ParseMode.MARKDOWN,
+                parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=topic_id,
             )
 
