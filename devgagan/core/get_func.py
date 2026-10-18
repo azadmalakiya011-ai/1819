@@ -684,27 +684,6 @@ async def send_media_message(app, target_chat_id, msg, caption, topic_id):
 
 #CUSTOM_EMOJIS = ["🍁", "🍀", "👑", "✨", "🦋", "🌟", "💖"]
 
-def replace_fancy_and_emoji(text: str) -> str:
-    """
-    Remove fancy Unicode characters (like 𝐀–𝒁, 𓆩𓆪, etc.)
-    Replace emojis (symbols) with our custom emoji set.
-    """
-    result = []
-    for char in text:
-        code = ord(char)
-
-        # Skip fancy styled alphabets (Mathematical, etc.)
-        if (0x1D400 <= code <= 0x1D7FF) or (0x13000 <= code <= 0x1342F):
-            continue
-
-        # Replace emojis or symbolic characters
-        if unicodedata.category(char) == "So" or char in ['️', '‍', '\u200d']:
-            result.append(random.choice(CUSTOM_EMOJIS))
-        else:
-            result.append(char)
-
-    return ''.join(result)
-
 def format_caption(original_caption, sender, custom_caption):
     delete_words = load_delete_words(sender)
     replacements = load_replacement_words(sender)
@@ -717,6 +696,19 @@ def format_caption(original_caption, sender, custom_caption):
 
     # ✅ Remove all hashtags like #Movie
     original_caption = re.sub(r'#\S+', '', original_caption)
+
+    # 🔁 Delete unwanted words
+    for word in delete_words:
+        original_caption = original_caption.replace(word, ' ')
+
+    # 🔁 Replace mapped words
+    for old, new in replacements.items():
+        original_caption = original_caption.replace(old, new)
+
+    # ✅ Symbol replacements (લિંક બન્યા પહેલા કૌંસ બદલવા જેથી લિંકના [ ] ના બગડે)
+    original_caption = original_caption.replace("[", "〘").replace("]", "〙")
+    original_caption = original_caption.replace("📕", "📓")
+    original_caption = original_caption.replace("📽️", "🍀")
 
     # ✅ Replace @mentions
     original_caption = re.sub(r'@\w+', '[╰‿╯ ҡσℓเ ⚝](https://t.me/+2VtPCOgf0vJlMzFl)', original_caption)
@@ -731,12 +723,10 @@ def format_caption(original_caption, sender, custom_caption):
     # ✅ Replace "Extracted By" with custom credit    
     original_caption = re.sub(
         r'(📩)?\s*(Extracted[\s_]*By)\s*[:➤>–\-]*\s*.*',
-        r'╰‿╯ ҡσℓเ ⚝',
+        r'[╰‿╯ ҡσℓเ ⚝](https://t.me/+2VtPCOgf0vJlMzFl)',
         original_caption,
         flags=re.IGNORECASE
     )
-
-
 
     # ✅ Replace "Downloaded By" with bot handle
     original_caption = re.sub(
@@ -746,30 +736,19 @@ def format_caption(original_caption, sender, custom_caption):
         flags=re.IGNORECASE
     )
     
+    # ✅ Replace "Uploaded By" with custom credit
     original_caption = re.sub(
         r'(⏫)?\s*<u>?\s*(Uploaded[\s_]*By)\s*[➤:>–\-]*\s*[^<\n]+</u>?',
-        r'⏫ Uploaded By ➤ ╰‿╯ ҡσℓเ ⚝',
+        r'⏫ Uploaded By ➤ [╰‿╯ ҡσℓเ ⚝](https://t.me/+2VtPCOgf0vJlMzFl)',
         original_caption,
         flags=re.IGNORECASE
-        )
-
-    # 🔁 Delete unwanted words
-    for word in delete_words:
-        original_caption = original_caption.replace(word, ' ')
-
-    # 🔁 Replace mapped words
-    for old, new in replacements.items():
-        original_caption = original_caption.replace(old, new)
-
-    # ✅ Symbol replacements
-    original_caption = original_caption.replace("[", "〘").replace("]", "〙")
-    original_caption = original_caption.replace("📕", "📓")
-    original_caption = original_caption.replace("📽️", "🍀")
+    )
 
     # ✅ Append custom caption if exists
     if custom_caption:
         return f"{original_caption}\n\n__**{custom_caption}**__"
     return original_caption
+    
 
 # ------------------------ Button Mode Editz FOR SETTINGS ----------------------------
 
