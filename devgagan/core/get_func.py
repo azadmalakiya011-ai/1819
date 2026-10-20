@@ -644,6 +644,7 @@ async def send_media_message(app, target_chat_id, msg, caption, topic_id):
                 r'[╰‿╯ ҡσℓเ ⚝](https://t.me/+2VtPCOgf0vJlMzFl)',
                 caption
             )
+            caption = caption.replace("<b>", "").replace("</b>", "").replace("<u>", "").replace("</u>", "")
         elif file_name:
             # If no caption → use only file name
             caption = f"🗃 {file_name}"
